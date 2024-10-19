@@ -5,11 +5,15 @@ import { Model } from 'mongoose';
 import { CreateUserDto, loginUserDto } from 'src/dto';
 import { BcryptService } from 'src/bcrypt/bcrypt.service';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService extends HttpStatusCodesService {
   private bcryptService: BcryptService = new BcryptService();
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    private jwtService: JwtService,
+  ) {
     super();
   }
 
@@ -18,10 +22,17 @@ export class AuthService extends HttpStatusCodesService {
       const HashedPassword = await this.bcryptService.createHashPassword(
         userInfo.password,
       );
-      return await this.userModel.create({
-        ...userInfo,
-        password: HashedPassword,
+      const user = (
+        await this.userModel.create({
+          ...userInfo,
+          password: HashedPassword,
+        })
+      ).toObject();
+      const access_token = await this.jwtService.signAsync({
+        email: user.email,
       });
+
+      return { ...user, access_token };
     } catch (error) {
       if (error.code === 11000) {
         throw new Error(this.STATUS_ALREADY_EXIST_MESSAGE);
@@ -34,17 +45,20 @@ export class AuthService extends HttpStatusCodesService {
     if (!user) {
       throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
     }
-    const userDbData = user.toObject();
+    const userDbDetails = user.toObject();
 
     if (
       !(await this.bcryptService.comparePassword(
         userInfo.password,
-        userDbData.password,
+        userDbDetails.password,
       ))
     ) {
       throw new Error(this.STATUS_MESSAGE_FOR_UNAUTHORIZED);
     }
-    const { password: _, ...restUserData } = userDbData;
-    return restUserData;
+    const access_token = await this.jwtService.signAsync({
+      email: userDbDetails.email,
+    });
+    const { password: _, ...restUserData } = userDbDetails;
+    return { access_token, ...restUserData };
   }
 }

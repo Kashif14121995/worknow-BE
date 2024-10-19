@@ -5,6 +5,7 @@ import { CreateUserDto, loginUserDto } from 'src/dto';
 import { AuthService } from './auth.service';
 import { SuccessResponse, ErrorResponse } from 'src/utils/response';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
+import { Public } from 'src/plugin/public';
 
 @Controller('auth')
 export class AuthController {
@@ -20,7 +21,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly http: HttpStatusCodesService,
   ) {}
-
+  @Public()
   @Post('signup')
   async signup(
     @Body() CreateUserDto: CreateUserDto,
@@ -57,6 +58,7 @@ export class AuthController {
     }
   }
 
+  @Public()
   @Post('login')
   async logIn(
     @Body() loginUserDto: loginUserDto,
