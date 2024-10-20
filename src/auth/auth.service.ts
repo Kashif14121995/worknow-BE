@@ -30,6 +30,7 @@ export class AuthService extends HttpStatusCodesService {
       ).toObject();
       const access_token = await this.jwtService.signAsync({
         email: user.email,
+        role: user.role,
       });
 
       return { ...user, access_token };
@@ -57,6 +58,7 @@ export class AuthService extends HttpStatusCodesService {
     }
     const access_token = await this.jwtService.signAsync({
       email: userDbDetails.email,
+      role: user.role,
     });
     const { password: _, ...restUserData } = userDbDetails;
     return { access_token, ...restUserData };
