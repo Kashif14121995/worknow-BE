@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/schemas/user.schema';
 import { Model } from 'mongoose';
-import { CreateUserDto, loginUserDto } from 'src/dto';
+import { CreateUserDto, loginUserDto, loginWithOTPUserDto } from 'src/dto';
 import { BcryptService } from 'src/bcrypt/bcrypt.service';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
 import { JwtService } from '@nestjs/jwt';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class AuthService extends HttpStatusCodesService {
@@ -13,6 +14,7 @@ export class AuthService extends HttpStatusCodesService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
+    private mailService: MailService,
   ) {
     super();
   }
@@ -41,6 +43,7 @@ export class AuthService extends HttpStatusCodesService {
       throw new Error(error);
     }
   }
+
   async login(userInfo: loginUserDto) {
     const user = await this.userModel.findOne({ email: userInfo.email });
     if (!user) {
@@ -62,5 +65,22 @@ export class AuthService extends HttpStatusCodesService {
     });
     const { password: _, ...restUserData } = userDbDetails;
     return { access_token, ...restUserData };
+  }
+
+  async loginWithOTp({ email }: loginWithOTPUserDto) {
+    const user = await this.userModel.findOne({ email });
+    if (!user) {
+      throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
+    }
+    const userDbDetails = user.toObject();
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+
+    await this.mailService.sendUserConfirmation({
+      email,
+      name: userDbDetails.first_name + ' ' + userDbDetails.last_name,
+      otp,
+    });
+    return true;
   }
 }

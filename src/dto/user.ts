@@ -53,3 +53,8 @@ export class loginUserDto {
   })
   password: string;
 }
+
+export class loginWithOTPUserDto {
+  @IsString()
+  email: string;
+}

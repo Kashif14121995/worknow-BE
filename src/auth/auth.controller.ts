@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Res } from '@nestjs/common';
 import { Response } from 'express'; // Import Response type
 
-import { CreateUserDto, loginUserDto } from 'src/dto';
+import { CreateUserDto, loginUserDto, loginWithOTPUserDto } from 'src/dto';
 import { AuthService } from './auth.service';
 import { SuccessResponse, ErrorResponse } from 'src/utils/response';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
@@ -66,6 +66,52 @@ export class AuthController {
   ): Promise<Response<any, Record<string, any>>> {
     try {
       const user = await this.authService.login(loginUserDto);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(user, this.USER_DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      if (error.message === this.http.STATUS_MESSAGE_FOR_NOT_FOUND) {
+        return res
+          .status(this.http.STATUS_NOT_FOUND)
+          .json(
+            new ErrorResponse(
+              this.http.STATUS_NOT_FOUND,
+              this.USER_NOT_FOUND,
+              error.message,
+            ),
+          );
+      }
+      if (error.message === this.http.STATUS_MESSAGE_FOR_UNAUTHORIZED) {
+        return res
+          .status(this.http.STATUS_UNAUTHORIZED)
+          .json(
+            new ErrorResponse(
+              this.http.STATUS_UNAUTHORIZED,
+              this.USER_UNAUTHORIZED,
+              error.message,
+            ),
+          );
+      }
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.USER_CREATED_ERROR,
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Public()
+  @Post('login-with-otp')
+  async logInWithOTP(
+    @Body() loginUserDto: loginWithOTPUserDto,
+    @Res() res: Response,
+  ): Promise<Response<any, Record<string, any>>> {
+    try {
+      const user = await this.authService.loginWithOTp(loginUserDto);
       return res
         .status(this.http.STATUS_OK)
         .json(new SuccessResponse(user, this.USER_DATA_FETCHED_SUCCESSFULLY));

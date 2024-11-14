@@ -6,6 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BcryptService } from './bcrypt/bcrypt.service';
 import { HttpStatusCodesService } from './http_status_codes/http_status_codes.service';
+import { MailModule } from './mail/mail.module';
 import * as Joi from 'joi';
 import envConfig from '../env.config';
 import * as autoPopulate from 'mongoose-autopopulate';
@@ -35,6 +36,7 @@ import * as autoPopulate from 'mongoose-autopopulate';
         };
       },
     }),
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService, BcryptService, HttpStatusCodesService],
