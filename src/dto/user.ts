@@ -21,6 +21,7 @@ export class CreateUserDto {
   @IsString()
   email: string;
 
+  @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))
   @IsInt({ message: 'phone_number must be a valid integer' })
   phone_number: number;
