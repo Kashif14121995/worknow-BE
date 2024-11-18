@@ -10,6 +10,8 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  // app.setGlobalPrefix('api/v1');
+
   await app.listen(port);
   console.log(`Application is running on: http://localhost:${port}`);
 }

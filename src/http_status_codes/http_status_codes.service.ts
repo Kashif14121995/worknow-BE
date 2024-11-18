@@ -9,6 +9,9 @@ export class HttpStatusCodesService {
   readonly STATUS_ALREADY_EXIST = StatusCodes.CONFLICT;
   readonly STATUS_SUCCESSFULLY_CREATION = StatusCodes.CREATED;
   readonly STATUS_INTERNAL_SERVER_ERROR = StatusCodes.INTERNAL_SERVER_ERROR;
+  readonly STATUS_EXPIRED = StatusCodes.GONE;
+
+  readonly STATUS_MESSAGE_FOR_EXPIRED = getReasonPhrase(StatusCodes.GONE);
 
   readonly STATUS_MESSAGE_FOR_NOT_FOUND = getReasonPhrase(
     StatusCodes.NOT_FOUND,

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -10,6 +10,7 @@ import { MailModule } from './mail/mail.module';
 import * as Joi from 'joi';
 import envConfig from '../env.config';
 import * as autoPopulate from 'mongoose-autopopulate';
+import { LoggerMiddleware } from './common/utils/logger';
 
 @Module({
   imports: [
@@ -41,4 +42,8 @@ import * as autoPopulate from 'mongoose-autopopulate';
   controllers: [AppController],
   providers: [AppService, BcryptService, HttpStatusCodesService],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

@@ -1,7 +1,11 @@
 import { Controller, Post, Body, Res } from '@nestjs/common';
 import { Response } from 'express'; // Import Response type
 
-import { CreateUserDto, loginUserDto, loginWithOTPUserDto } from 'src/dto';
+import {
+  CreateUserDto,
+  loginUserDto,
+  loginWithOTPUserDto as userEmailDetailsDto,
+} from 'src/dto';
 import { AuthService } from './auth.service';
 import { SuccessResponse, ErrorResponse } from 'src/utils/response';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
@@ -16,6 +20,7 @@ export class AuthController {
   private readonly USER_DATA_FETCHED_SUCCESSFULLY =
     'Successfully fetched user data';
   private readonly ALREADY_EXIST = 'User with Email already exists';
+  private readonly USER_OTP_SESSION_EXPIRED = `otp session  expired`;
 
   constructor(
     private readonly authService: AuthService,
@@ -107,7 +112,7 @@ export class AuthController {
   @Public()
   @Post('login-with-otp')
   async logInWithOTP(
-    @Body() loginUserDto: loginWithOTPUserDto,
+    @Body() loginUserDto: userEmailDetailsDto,
     @Res() res: Response,
   ): Promise<Response<any, Record<string, any>>> {
     try {
@@ -134,6 +139,52 @@ export class AuthController {
             new ErrorResponse(
               this.http.STATUS_UNAUTHORIZED,
               this.USER_UNAUTHORIZED,
+              error.message,
+            ),
+          );
+      }
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.USER_CREATED_ERROR,
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Public()
+  @Post('verify-otp')
+  async verifyOtp(
+    @Body() loginUserDto: userEmailDetailsDto,
+    @Res() res: Response,
+  ): Promise<Response<any, Record<string, any>>> {
+    try {
+      const user = await this.authService.verifyOTp(loginUserDto);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(user, this.USER_DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      if (error.message === this.http.STATUS_MESSAGE_FOR_NOT_FOUND) {
+        return res
+          .status(this.http.STATUS_NOT_FOUND)
+          .json(
+            new ErrorResponse(
+              this.http.STATUS_NOT_FOUND,
+              this.USER_NOT_FOUND,
+              error.message,
+            ),
+          );
+      }
+      if (error.message === this.http.STATUS_MESSAGE_FOR_EXPIRED) {
+        return res
+          .status(this.http.STATUS_EXPIRED)
+          .json(
+            new ErrorResponse(
+              this.http.STATUS_EXPIRED,
+              this.USER_OTP_SESSION_EXPIRED,
               error.message,
             ),
           );

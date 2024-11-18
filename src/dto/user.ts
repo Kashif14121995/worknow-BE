@@ -5,6 +5,8 @@ import {
   MinLength,
   MaxLength,
   IsEnum,
+  IsOptional,
+  IsNumber,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { UserRole } from 'src/auth/constants';
@@ -57,4 +59,8 @@ export class loginUserDto {
 export class loginWithOTPUserDto {
   @IsString()
   email: string;
+
+  @IsOptional()
+  @IsNumber()
+  otp?: number;
 }
