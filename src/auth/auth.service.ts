@@ -2,18 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from 'src/schemas/user.schema';
 import { Model } from 'mongoose';
-import { CreateUserDto, loginUserDto, loginWithOTPUserDto } from 'src/dto';
+import {
+  CreateUserDto,
+  loginUserDto,
+  loginWithGoogleUserDto,
+  loginWithOTPUserDto,
+} from 'src/dto';
 import { BcryptService } from 'src/bcrypt/bcrypt.service';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from 'src/mail/mail.service';
 import { randomInt } from 'crypto';
 import { ConfigService } from '@nestjs/config';
+import { google } from 'googleapis';
 
 @Injectable()
 export class AuthService extends HttpStatusCodesService {
   private bcryptService: BcryptService = new BcryptService();
   private readonly OTP_EXPIRATION_TIME: number = 300000;
+  private oauth2Client;
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
@@ -21,6 +28,19 @@ export class AuthService extends HttpStatusCodesService {
     private configService: ConfigService,
   ) {
     super();
+    const GOOGLE_CLIENT_ID = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    const GOOGLE_CLIENT_SECRET = this.configService.get<string>(
+      'GOOGLE_CLIENT_SECRET',
+    );
+    const GOOGLE_REDIRECT_URI = this.configService.get<string>(
+      'GOOGLE_REDIRECT_URI',
+    );
+
+    this.oauth2Client = new google.auth.OAuth2(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      GOOGLE_REDIRECT_URI,
+    );
   }
 
   async create(userInfo: CreateUserDto) {
@@ -49,7 +69,10 @@ export class AuthService extends HttpStatusCodesService {
   }
 
   async login(userInfo: loginUserDto) {
-    const user = await this.userModel.findOne({ email: userInfo.email });
+    const user = await this.userModel.findOne({
+      email: userInfo.email,
+      role: userInfo.role,
+    });
     if (!user) {
       throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
     }
@@ -63,6 +86,34 @@ export class AuthService extends HttpStatusCodesService {
     ) {
       throw new Error(this.STATUS_MESSAGE_FOR_UNAUTHORIZED);
     }
+    const access_token = await this.jwtService.signAsync({
+      email: userDbDetails.email,
+      role: user.role,
+    });
+    const { password: _, ...restUserData } = userDbDetails;
+    return { access_token, ...restUserData };
+  }
+
+  async loginWithGoogle(userGoogleInfo: loginWithGoogleUserDto) {
+    const { tokens } = await this.oauth2Client.getToken(userGoogleInfo.code);
+    this.oauth2Client.setCredentials(tokens);
+
+    const oauth2 = google.oauth2({
+      version: 'v2',
+      auth: this.oauth2Client,
+    });
+
+    const userInfo = await oauth2.userinfo.v2.me.get();
+
+    const user = await this.userModel.findOne({
+      email: userInfo.data.email,
+      role: userGoogleInfo.role,
+    });
+    if (!user) {
+      throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
+    }
+    const userDbDetails = user.toObject();
+
     const access_token = await this.jwtService.signAsync({
       email: userDbDetails.email,
       role: user.role,
@@ -118,7 +169,7 @@ export class AuthService extends HttpStatusCodesService {
     const {
       password: _,
       otp_expires_after: _otp_expires_after,
-      otp:_otp,
+      otp: _otp,
       ...restUserData
     } = userDbDetails;
     return { access_token, ...restUserData };

@@ -55,6 +55,10 @@ export class loginUserDto {
     message: 'password must contain at least one letter and one number',
   })
   password: string;
+  @IsEnum([UserRole.job_provider, UserRole.job_seeker], {
+    message: `role no match with either ${UserRole.job_provider} or ${UserRole.job_seeker}`,
+  })
+  role: string;
 }
 
 export class loginWithOTPUserDto {
@@ -64,4 +68,14 @@ export class loginWithOTPUserDto {
   @IsOptional()
   @IsNumber()
   otp?: number;
+}
+
+export class loginWithGoogleUserDto {
+  @IsString()
+  code: string;
+
+  @IsEnum([UserRole.job_provider, UserRole.job_seeker], {
+    message: `role no match with either ${UserRole.job_provider} or ${UserRole.job_seeker}`,
+  })
+  role: string;
 }
