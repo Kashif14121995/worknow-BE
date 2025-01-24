@@ -11,6 +11,8 @@ import * as Joi from 'joi';
 import envConfig from '../env.config';
 import * as autoPopulate from 'mongoose-autopopulate';
 import { LoggerMiddleware } from './common/utils/logger';
+import { StripeModule } from './stripe/stripe.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -22,6 +24,7 @@ import { LoggerMiddleware } from './common/utils/logger';
       validationSchema: Joi.object({
         DATABASE_URL: Joi.string().uri().required(),
         JWT_SECRET: Joi.string().required(),
+        STRIPE_API_KEY: Joi.string().required(),
       }),
     }),
     MongooseModule.forRootAsync({
@@ -38,6 +41,8 @@ import { LoggerMiddleware } from './common/utils/logger';
       },
     }),
     MailModule,
+    StripeModule.forRootAsync(),
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService, BcryptService, HttpStatusCodesService],
