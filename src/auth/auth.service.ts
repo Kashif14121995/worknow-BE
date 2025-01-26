@@ -4,6 +4,7 @@ import { User } from 'src/schemas/user.schema';
 import { Model } from 'mongoose';
 import {
   CreateUserDto,
+  ForgotPasswordDto,
   loginUserDto,
   loginWithGoogleUserDto,
   loginWithOTPUserDto,
@@ -21,6 +22,8 @@ export class AuthService extends HttpStatusCodesService {
   private bcryptService: BcryptService = new BcryptService();
   private readonly OTP_EXPIRATION_TIME: number = 300000;
   private oauth2Client;
+  private frontEndBaseUrl: string;
+
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
@@ -41,6 +44,14 @@ export class AuthService extends HttpStatusCodesService {
       GOOGLE_CLIENT_SECRET,
       GOOGLE_REDIRECT_URI,
     );
+    this.frontEndBaseUrl = configService.get<string>('FRONTEND_BASE_URL');
+  }
+
+  async createJWTTokenForUser(user) {
+    return await this.jwtService.signAsync({
+      email: user.email,
+      role: user.role,
+    });
   }
 
   async create(userInfo: CreateUserDto) {
@@ -54,10 +65,7 @@ export class AuthService extends HttpStatusCodesService {
           password: HashedPassword,
         })
       ).toObject();
-      const access_token = await this.jwtService.signAsync({
-        email: user.email,
-        role: user.role,
-      });
+      const access_token = await this.createJWTTokenForUser(user);
 
       return { ...user, access_token };
     } catch (error) {
@@ -86,10 +94,7 @@ export class AuthService extends HttpStatusCodesService {
     ) {
       throw new Error(this.STATUS_MESSAGE_FOR_UNAUTHORIZED);
     }
-    const access_token = await this.jwtService.signAsync({
-      email: userDbDetails.email,
-      role: user.role,
-    });
+    const access_token = await this.createJWTTokenForUser(userDbDetails);
     const { password: _, ...restUserData } = userDbDetails;
     return { access_token, ...restUserData };
   }
@@ -114,10 +119,7 @@ export class AuthService extends HttpStatusCodesService {
     }
     const userDbDetails = user.toObject();
 
-    const access_token = await this.jwtService.signAsync({
-      email: userDbDetails.email,
-      role: user.role,
-    });
+    const access_token = await this.createJWTTokenForUser(userDbDetails);
     const { password: _, ...restUserData } = userDbDetails;
     return { access_token, ...restUserData };
   }
@@ -162,10 +164,7 @@ export class AuthService extends HttpStatusCodesService {
 
     await user.updateOne({ otp: undefined, otp_expires_after: undefined });
 
-    const access_token = await this.jwtService.signAsync({
-      email: userDbDetails.email,
-      role: user.role,
-    });
+    const access_token = await this.createJWTTokenForUser(userDbDetails);
     const {
       password: _,
       otp_expires_after: _otp_expires_after,
@@ -173,7 +172,23 @@ export class AuthService extends HttpStatusCodesService {
       ...restUserData
     } = userDbDetails;
     return { access_token, ...restUserData };
+  }
 
+  async forgotPassword({ email }: ForgotPasswordDto) {
+    const user = await this.userModel.findOne({ email });
+    if (!user) {
+      throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
+    }
+
+    const userDbDetails = user.toObject();
+    const jwt = await this.createJWTTokenForUser(userDbDetails);
+    const url = `${this.frontEndBaseUrl}?token=${jwt}`;
+
+    await this.mailService.sendForgotPasswordMail({
+      email,
+      name: userDbDetails.first_name + ' ' + userDbDetails.last_name,
+      url,
+    });
     return true;
   }
 }

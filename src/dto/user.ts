@@ -79,3 +79,8 @@ export class loginWithGoogleUserDto {
   })
   role: string;
 }
+
+export class ForgotPasswordDto {
+  @IsString()
+  email: string;
+}

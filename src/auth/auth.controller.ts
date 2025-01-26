@@ -3,6 +3,7 @@ import { Response } from 'express'; // Import Response type
 
 import {
   CreateUserDto,
+  ForgotPasswordDto,
   loginUserDto,
   loginWithGoogleUserDto,
   loginWithOTPUserDto as userEmailDetailsDto,
@@ -21,6 +22,7 @@ export class AuthController {
     'Successfully fetched user data';
   private readonly ALREADY_EXIST = 'User with Email already exists';
   private readonly USER_OTP_SESSION_EXPIRED = `otp session  expired`;
+  private readonly FORGOT_PASSWORD_REQUEST_SEND_SUCCESS = `Successfully sent forgot-password mail`;
 
   constructor(
     private readonly authService: AuthService,
@@ -226,6 +228,42 @@ export class AuthController {
             new ErrorResponse(
               this.http.STATUS_EXPIRED,
               this.USER_OTP_SESSION_EXPIRED,
+              error.message,
+            ),
+          );
+      }
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.USER_CREATED_ERROR,
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(
+    @Body() forgotPasswordData: ForgotPasswordDto,
+    @Res() res: Response,
+  ): Promise<Response<any, Record<string, any>>> {
+    try {
+      const user = await this.authService.forgotPassword(forgotPasswordData);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(
+          new SuccessResponse(user, this.FORGOT_PASSWORD_REQUEST_SEND_SUCCESS),
+        );
+    } catch (error) {
+      if (error.message === this.http.STATUS_MESSAGE_FOR_NOT_FOUND) {
+        return res
+          .status(this.http.STATUS_NOT_FOUND)
+          .json(
+            new ErrorResponse(
+              this.http.STATUS_NOT_FOUND,
+              this.USER_NOT_FOUND,
               error.message,
             ),
           );
