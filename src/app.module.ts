@@ -13,6 +13,8 @@ import * as autoPopulate from 'mongoose-autopopulate';
 import { LoggerMiddleware } from './common/utils/logger';
 import { StripeModule } from './stripe/stripe.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { AwsModule } from './aws/aws.module';
+import { JobsModule } from './modules/jobs/jobs.module';
 @Module({
   imports: [
     AuthModule,
@@ -42,6 +44,8 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     MailModule,
     StripeModule.forRootAsync(),
     WebhooksModule,
+    AwsModule,
+    JobsModule,
   ],
   controllers: [AppController],
   providers: [AppService, BcryptService, HttpStatusCodesService],

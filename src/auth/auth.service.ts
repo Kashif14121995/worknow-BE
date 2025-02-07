@@ -51,6 +51,7 @@ export class AuthService extends HttpStatusCodesService {
     return await this.jwtService.signAsync({
       email: user.email,
       role: user.role,
+      id: user._id,
     });
   }
 

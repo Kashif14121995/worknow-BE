@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument } from 'mongoose';
 import { UserRole } from 'src/auth/constants';
 export type UserDocument = HydratedDocument<User>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class User {
   @Prop()
   first_name: string;
@@ -28,6 +28,15 @@ export class User {
 
   @Prop({ enum: [UserRole.job_provider, UserRole.job_seeker] })
   role: string;
+
+  @Prop()
+  createdAt?: Date;
+
+  @Prop()
+  updatedAt?: Date;
+
+  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'JobPosting' }] })
+  jobPostings: mongoose.Types.ObjectId[];
 }
 
 const UserSchema = SchemaFactory.createForClass(User);

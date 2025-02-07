@@ -1,0 +1,137 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Req,
+  Res,
+} from '@nestjs/common';
+import { JobsService } from './jobs.service';
+import { CreateJobListingDto } from './dto/create-job.dto';
+import { UpdateJobListingDto } from './dto/update-job.dto';
+import { JobStatus } from './constants';
+import { APIResponse, Request } from 'src/types/express';
+import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
+import { ErrorResponse, SuccessResponse } from 'src/utils/response';
+import {
+  CREATED_ERROR,
+  CREATED_SUCCESS,
+  DATA_FETCHED_SUCCESSFULLY,
+  UPDATE_ERROR,
+  UPDATE_SUCCESS,
+} from 'src/constants';
+import { Response } from 'express';
+
+@Controller('jobs')
+export class JobsController {
+  private readonly FIND_USER_JOBS_ERROR = `Error fetching user job details for user with email {{email}} for {{status}} jobs`;
+  constructor(
+    private readonly jobsService: JobsService,
+    private readonly http: HttpStatusCodesService,
+  ) {}
+
+  @Post('listing')
+  async create(
+    @Body() CreateJobListingDto: CreateJobListingDto,
+    @Req() request: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      const userId = request.user.id;
+      const data = await this.jobsService.create(CreateJobListingDto, userId);
+      return res
+        .status(this.http.STATUS_SUCCESSFULLY_CREATION)
+        .json(
+          new SuccessResponse(
+            data,
+            CREATED_SUCCESS.replace('{{entity}}', 'job'),
+          ),
+        );
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            CREATED_ERROR.replace('{{entity}}', 'job'),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get()
+  findAll() {
+    return this.jobsService.findAll();
+  }
+
+  @Get('listing/:id')
+  findOne(@Param('id') id: string) {
+    return this.jobsService.findOne(+id);
+  }
+
+  @Patch('listing/:id')
+  async update(
+    @Param('id') id: string,
+    @Res() res: Response,
+    @Body() UpdateJobListingDto: UpdateJobListingDto,
+  ) {
+    try {
+      const data = await this.jobsService.update(id, UpdateJobListingDto);
+      return res
+        .status(this.http.STATUS_SUCCESSFULLY_CREATION)
+        .json(
+          new SuccessResponse(
+            data,
+            UPDATE_SUCCESS.replace('{{entity}}', 'job'),
+          ),
+        );
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            UPDATE_ERROR.replace('{{entity}}', 'job'),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Delete('listing/:id')
+  remove(@Param('id') id: string) {
+    return this.jobsService.remove(+id);
+  }
+
+  @Get('/user/listing/:status')
+  async findUserJobs(
+    @Param('status') status: JobStatus,
+    @Req() request: Request,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const userId = request?.user?.id;
+      const data = await this.jobsService.findUserJobs(userId, status);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_USER_JOBS_ERROR.replace(
+              '{{email}}',
+              request.user?.email ?? 'unknown',
+            ).replace('{{status}}', status),
+            error.message,
+          ),
+        );
+    }
+  }
+}

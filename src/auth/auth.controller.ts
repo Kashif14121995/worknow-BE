@@ -11,6 +11,8 @@ import {
 import { AuthService } from './auth.service';
 import { SuccessResponse, ErrorResponse } from 'src/utils/response';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
+import { APIResponse } from 'src/types/express';
+import { Public } from 'src/plugin/public';
 
 @Controller('auth')
 export class AuthController {
@@ -28,11 +30,13 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly http: HttpStatusCodesService,
   ) {}
+
+  @Public()
   @Post('signup')
   async signup(
     @Body() CreateUserDto: CreateUserDto,
     @Res() res: Response,
-  ): Promise<Response<any, Record<string, any>>> {
+  ): APIResponse {
     try {
       const userCreateInput = await this.authService.create(CreateUserDto);
       return res
@@ -64,11 +68,12 @@ export class AuthController {
     }
   }
 
+  @Public()
   @Post('login')
   async logIn(
     @Body() loginUserDto: loginUserDto,
     @Res() res: Response,
-  ): Promise<Response<any, Record<string, any>>> {
+  ): APIResponse {
     try {
       const user = await this.authService.login(loginUserDto);
       return res
@@ -109,11 +114,12 @@ export class AuthController {
     }
   }
 
+  @Public()
   @Post('login-with-otp')
   async logInWithOTP(
     @Body() loginUserDto: userEmailDetailsDto,
     @Res() res: Response,
-  ): Promise<Response<any, Record<string, any>>> {
+  ): APIResponse {
     try {
       const user = await this.authService.loginWithOTp(loginUserDto);
       return res
@@ -154,11 +160,12 @@ export class AuthController {
     }
   }
 
+  @Public()
   @Post('login-with-google')
   async logInWithGoogle(
     @Body() loginUserDto: loginWithGoogleUserDto,
     @Res() res: Response,
-  ): Promise<Response<any, Record<string, any>>> {
+  ): APIResponse {
     try {
       const user = await this.authService.loginWithGoogle(loginUserDto);
       return res
@@ -199,11 +206,12 @@ export class AuthController {
     }
   }
 
+  @Public()
   @Post('verify-otp')
   async verifyOtp(
     @Body() loginUserDto: userEmailDetailsDto,
     @Res() res: Response,
-  ): Promise<Response<any, Record<string, any>>> {
+  ): APIResponse {
     try {
       const user = await this.authService.verifyOTp(loginUserDto);
       return res
@@ -244,11 +252,12 @@ export class AuthController {
     }
   }
 
+  @Public()
   @Post('forgot-password')
   async forgotPassword(
     @Body() forgotPasswordData: ForgotPasswordDto,
     @Res() res: Response,
-  ): Promise<Response<any, Record<string, any>>> {
+  ): APIResponse {
     try {
       const user = await this.authService.forgotPassword(forgotPasswordData);
       return res
