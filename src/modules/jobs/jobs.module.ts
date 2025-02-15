@@ -5,13 +5,19 @@ import { JobsController } from './jobs.controller';
 // import { AuthGuard } from 'src/auth/auth.guard';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { JobPosting, JobPostingSchema } from './entities/job.entity';
+import {
+  JobApplying,
+  JobApplyingSchema,
+  JobPosting,
+  JobPostingSchema,
+} from './entities/job.entity';
 import { JwtService } from '@nestjs/jwt';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: JobPosting.name, schema: JobPostingSchema },
+      { name: JobApplying.name, schema: JobApplyingSchema },
     ]),
   ],
   controllers: [JobsController],

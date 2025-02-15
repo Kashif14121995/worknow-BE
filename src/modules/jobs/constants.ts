@@ -7,9 +7,17 @@ export enum JobStatus {
   active = 'active',
   closed = 'closed',
   onGoing = 'onGoing',
+  cancelled = 'cancelled',
 }
 
 export enum paymentType {
   contractual = 'contractual',
   per_hour = 'per_hour',
+}
+
+export enum JobApplicationAppliedStatus {
+  hired,
+  applied,
+  rejected,
+  completed,
 }

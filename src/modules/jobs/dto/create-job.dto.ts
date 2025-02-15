@@ -18,7 +18,7 @@ export class CreateJobListingDto {
   @IsString()
   zipCode: string;
 
-  @IsEnum([AvailableJobs.site_worker, AvailableJobs.software_engineer])
+  @IsEnum(AvailableJobs)
   type: string;
 
   @IsArray() // Ensures it's an array
@@ -66,4 +66,10 @@ export class CreateJobListingDto {
 
   @IsNumber()
   payment: number;
+
+  @IsNumber()
+  shiftStartsAt: number;
+
+  @IsNumber()
+  shiftEndsAt: number;
 }

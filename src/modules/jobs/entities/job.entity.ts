@@ -1,6 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import { JobStatus, AvailableJobs, paymentType } from '../constants';
+import {
+  JobStatus,
+  AvailableJobs,
+  paymentType,
+  JobApplicationAppliedStatus,
+} from '../constants';
 
 export type JobPostingDocument = HydratedDocument<JobPosting>;
 
@@ -13,7 +18,7 @@ export class JobPosting {
   updatedAt?: Date;
 
   @Prop({
-    enum: [JobStatus.active, JobStatus.closed],
+    enum: JobStatus,
     default: JobStatus.active,
   })
   status: string;
@@ -27,7 +32,7 @@ export class JobPosting {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
   postedBy: mongoose.Types.ObjectId;
 
-  @Prop({ enum: [AvailableJobs.site_worker, AvailableJobs.software_engineer] })
+  @Prop({ enum: AvailableJobs })
   type: string;
 
   @Prop({ default: [] })
@@ -59,8 +64,39 @@ export class JobPosting {
 
   @Prop()
   payment: number;
+
+  @Prop()
+  shiftStartsAt: number;
+
+  @Prop()
+  shiftEndsAt: number;
 }
 
 const JobPostingSchema = SchemaFactory.createForClass(JobPosting);
 
 export { JobPostingSchema };
+
+@Schema({ timestamps: true })
+export class JobApplying {
+  @Prop()
+  createdAt?: Date;
+
+  @Prop()
+  updatedAt?: Date;
+
+  @Prop({
+    enum: JobApplicationAppliedStatus,
+    default: JobApplicationAppliedStatus.applied,
+  })
+  status: string;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
+  appliedBy: mongoose.Types.ObjectId;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'jobpostings' })
+  appliedFor: mongoose.Types.ObjectId;
+}
+
+const JobApplyingSchema = SchemaFactory.createForClass(JobApplying);
+
+export { JobApplyingSchema };

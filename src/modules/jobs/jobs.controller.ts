@@ -28,6 +28,9 @@ import { Response } from 'express';
 @Controller('jobs')
 export class JobsController {
   private readonly FIND_USER_JOBS_ERROR = `Error fetching user job details for user with email {{email}} for {{status}} jobs`;
+  private readonly FIND_USER_JOB_APPLICANTS_ERROR = `Error fetching user job applicants for user with email {{email}} `;
+  private readonly FIND_USER__APPLICANTS_ERROR = `Error fetching user job applicants for user with email {{email}} `;
+
   constructor(
     private readonly jobsService: JobsService,
     private readonly http: HttpStatusCodesService,
@@ -129,6 +132,91 @@ export class JobsController {
               '{{email}}',
               request.user?.email ?? 'unknown',
             ).replace('{{status}}', status),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Post('/apply/:jobId')
+  async applyForJob(
+    @Req() request: Request,
+    @Res() res: Response,
+    @Param('jobId') jobId: string,
+  ) {
+    const entityByName = 'job';
+    try {
+      const userId = request.user.id;
+      const data = await this.jobsService.applyForJob(jobId, userId);
+      return res
+        .status(this.http.STATUS_SUCCESSFULLY_CREATION)
+        .json(
+          new SuccessResponse(
+            data,
+            CREATED_SUCCESS.replace('{{entity}}', entityByName),
+          ),
+        );
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            CREATED_ERROR.replace('{{entity}}', entityByName),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get('/listing/applicants')
+  async findAllApplicants(
+    @Req() request: Request,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const userId = request?.user?.id;
+      const data = await this.jobsService.getAllJobApplications(userId);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
+              '{{email}}',
+              request.user?.email ?? 'unknown',
+            ),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get('/listing/shifts')
+  async findUserShiftsData(
+    @Req() request: Request,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const userId = request?.user?.id;
+      const data = await this.jobsService.getUserListingShiftsData(userId);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
+              '{{email}}',
+              request.user?.email ?? 'unknown',
+            ),
             error.message,
           ),
         );
