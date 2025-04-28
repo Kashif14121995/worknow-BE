@@ -6,7 +6,6 @@ type UserRequestSchema = {
   role: string;
 };
 
-// Extend the Express Request type with UserRequestSchema
 export interface Request extends ExpressRequest {
   user: UserRequestSchema;
 }
