@@ -11,6 +11,11 @@
       "description": "Local server"
     }
   ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
   "paths": {
     "/auth/signup": {
       "post": {
@@ -125,6 +130,18 @@
         "responses": {
           "201": {
             "description": "Job created successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get all job listings",
+        "tags": ["Jobs"],
+        "responses": {
+          "200": {
+            "description": "Job fetched successfully"
           },
           "500": {
             "description": "Internal server error"
@@ -281,17 +298,43 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
     "schemas": {
       "CreateUserDto": {
         "type": "object",
         "properties": {
+          "first_name": {
+            "type": "string",
+            "example": "John"
+          },
+          "last_name": {
+            "type": "string",
+            "example": "Doe"
+          },
           "email": {
             "type": "string",
             "example": "user@example.com"
           },
+          "phone_number": {
+            "type": "integer",
+            "example": 1234567890
+          },
           "password": {
             "type": "string",
+            "minLength": 8,
+            "maxLength": 20,
             "example": "password123"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["job_provider", "job_seeker"],
+            "example": "job_seeker"
           }
         }
       },
