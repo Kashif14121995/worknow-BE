@@ -20,7 +20,9 @@
     "/auth/signup": {
       "post": {
         "summary": "Sign up a new user",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -44,7 +46,9 @@
     "/auth/login": {
       "post": {
         "summary": "Log in a user",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -68,7 +72,9 @@
     "/auth/login-with-otp": {
       "post": {
         "summary": "Log in with OTP",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -92,7 +98,9 @@
     "/auth/forgot-password": {
       "post": {
         "summary": "Forgot password",
-        "tags": ["Auth"],
+        "tags": [
+          "Auth"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -116,7 +124,9 @@
     "/jobs/listing": {
       "post": {
         "summary": "Create a job listing",
-        "tags": ["Jobs"],
+        "tags": [
+          "Jobs"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -138,7 +148,9 @@
       },
       "get": {
         "summary": "Get all job listings",
-        "tags": ["Jobs"],
+        "tags": [
+          "Jobs"
+        ],
         "responses": {
           "200": {
             "description": "Job fetched successfully"
@@ -152,7 +164,9 @@
     "/jobs/listing/{id}": {
       "get": {
         "summary": "Get a job listing by ID",
-        "tags": ["Jobs"],
+        "tags": [
+          "Jobs"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -175,7 +189,9 @@
       },
       "patch": {
         "summary": "Update a job listing by ID",
-        "tags": ["Jobs"],
+        "tags": [
+          "Jobs"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -208,7 +224,9 @@
       },
       "delete": {
         "summary": "Delete a job listing by ID",
-        "tags": ["Jobs"],
+        "tags": [
+          "Jobs"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -230,10 +248,45 @@
         }
       }
     },
+    "/jobs/apply/{jobId}": {
+      "post": {
+        "summary": "Apply for a job",
+        "tags": [
+          "Jobs"
+        ],
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID to apply for"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Application submitted successfully"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        },
+        "security": [
+          { "bearerAuth": [] }
+        ]
+      }
+    },
     "/aws/upload": {
       "post": {
         "summary": "Upload a file to AWS S3",
-        "tags": ["AWS"],
+        "tags": [
+          "AWS"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -263,7 +316,9 @@
     "/aws/file/{key}": {
       "get": {
         "summary": "Get a file from AWS S3",
-        "tags": ["AWS"],
+        "tags": [
+          "AWS"
+        ],
         "parameters": [
           {
             "name": "key",
@@ -288,7 +343,9 @@
     "/ping": {
       "get": {
         "summary": "Ping the server",
-        "tags": ["App"],
+        "tags": [
+          "App"
+        ],
         "responses": {
           "200": {
             "description": "Server is running"
@@ -333,7 +390,10 @@
           },
           "role": {
             "type": "string",
-            "enum": ["job_provider", "job_seeker"],
+            "enum": [
+              "job_provider",
+              "job_seeker"
+            ],
             "example": "job_seeker"
           }
         }
@@ -348,6 +408,13 @@
           "password": {
             "type": "string",
             "example": "password123"
+          },
+          "role":{"type": "string",
+            "enum": [
+              "job_provider",
+              "job_seeker"
+            ],
+            "example": "job_seeker"
           }
         }
       },

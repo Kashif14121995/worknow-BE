@@ -34,7 +34,7 @@ export class JobsController {
   constructor(
     private readonly jobsService: JobsService,
     private readonly http: HttpStatusCodesService,
-  ) {}
+  ) { }
 
   @Post('listing')
   async create(
@@ -66,14 +66,36 @@ export class JobsController {
     }
   }
 
-  @Get()
-  findAll() {
-    return this.jobsService.findAll();
+  @Get('listing')
+  async findAll(@Req() request: Request,
+    @Res() res: Response) {
+    const userId = request?.user?.id;
+    try {
+      const data = await this.jobsService.findAll(userId);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(
+          new SuccessResponse(
+            data,
+            DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'job'),
+          ),
+        );
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            UPDATE_ERROR.replace('{{entity}}', 'job'),
+            error.message,
+          ),
+        );
+    }
   }
 
   @Get('listing/:id')
   findOne(@Param('id') id: string) {
-    return this.jobsService.findOne(+id);
+    return this.jobsService.findOne(id);
   }
 
   @Patch('listing/:id')
@@ -107,7 +129,7 @@ export class JobsController {
 
   @Delete('listing/:id')
   remove(@Param('id') id: string) {
-    return this.jobsService.remove(+id);
+    return this.jobsService.remove(id);
   }
 
   @Get('/user/listing/:status')
