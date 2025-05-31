@@ -27,10 +27,24 @@ export class JobsService {
     });
   }
 
-  async getAllJobApplications(userId: string) {
-    return await this.jobApplyingModel.find({
-      appliedBy: userId,
-    });
+  async getAllJobApplications(userId: string, page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const [results, total] = await Promise.all([
+      this.jobApplyingModel
+        .find({ appliedBy: userId })
+        .skip(skip)
+        .limit(limit)
+        .lean(), // optional: returns plain JS objects
+      this.jobApplyingModel.countDocuments({ appliedBy: userId }),
+    ]);
+
+    return {
+      data: results,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total,
+    };
   }
 
   async getUserListingShiftsData(userId: string) {
@@ -57,12 +71,13 @@ export class JobsService {
     };
   }
 
-  findAll() {
-    return `This action returns all jobs`;
+  async findAll() {
+    return await this.jobPostingModel.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} job`;
+  async findOne(id: number) {
+    console.log('Finding job with ID:', id);
+    return await this.jobPostingModel.findById(id);
   }
 
   async update(id: string, UpdateJobListingDto: UpdateJobListingDto) {

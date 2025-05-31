@@ -8,6 +8,7 @@ import {
   Delete,
   Req,
   Res,
+  Query
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { CreateJobListingDto } from './dto/create-job.dto';
@@ -16,6 +17,7 @@ import { JobStatus } from './constants';
 import { APIResponse, Request } from 'src/types/express';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
 import { ErrorResponse, SuccessResponse } from 'src/utils/response';
+import { PaginationDto } from './dto/pagination.dto';
 import {
   CREATED_ERROR,
   CREATED_SUCCESS,
@@ -66,7 +68,7 @@ export class JobsController {
     }
   }
 
-  @Get()
+  @Get('listing')
   findAll() {
     return this.jobsService.findAll();
   }
@@ -169,14 +171,16 @@ export class JobsController {
     }
   }
 
-  @Get('/listing/applicants')
+  @Get('/applicants')
   async findAllApplicants(
     @Req() request: Request,
     @Res() res: Response,
+    @Query() pagination: PaginationDto,
   ): APIResponse {
     try {
       const userId = request?.user?.id;
-      const data = await this.jobsService.getAllJobApplications(userId);
+      const { page, limit } = pagination;
+      const data = await this.jobsService.getAllJobApplications(userId, page, limit);
       return res
         .status(this.http.STATUS_OK)
         .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
