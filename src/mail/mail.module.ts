@@ -18,6 +18,8 @@ import { ConfigService } from '@nestjs/config';
             user: config.get('MAIL_USER'),
             pass: config.get('MAIL_PASSWORD'),
           },
+          port: config.get('MAIL_PORT') || 587, // Default to 587 if not set,
+          
         },
         defaults: {
           from: `"No Reply" <${config.get('MAIL_FROM')}>`,

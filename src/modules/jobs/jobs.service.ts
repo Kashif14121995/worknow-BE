@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateJobListingDto } from './dto/create-job.dto';
 import { UpdateJobListingDto } from './dto/update-job.dto';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { JobApplying, JobPosting } from './entities/job.entity';
 import { InjectModel } from '@nestjs/mongoose';
 import { JobStatus } from './constants';
@@ -27,10 +27,24 @@ export class JobsService {
     });
   }
 
-  async getAllJobApplications(userId: string) {
-    return await this.jobApplyingModel.find({
-      appliedBy: userId,
-    });
+  async getAllJobApplications(userId: string, page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const [results, total] = await Promise.all([
+      this.jobApplyingModel
+        .find({ appliedBy: userId })
+        .skip(skip)
+        .limit(limit)
+        .lean(), // optional: returns plain JS objects
+      this.jobApplyingModel.countDocuments({ appliedBy: userId }),
+    ]);
+
+    return {
+      data: results,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total,
+    };
   }
 
   async getUserListingShiftsData(userId: string) {
@@ -78,7 +92,8 @@ export class JobsService {
   }
 
   async findOne(id: string) {
-    return await this.jobPostingModel.findOne({ _id: id });
+    console.log('Finding job with ID:', id);
+    return await this.jobPostingModel.findById(id);
   }
 
   async update(id: string, UpdateJobListingDto: UpdateJobListingDto) {
@@ -97,5 +112,93 @@ export class JobsService {
       postedBy: id,
       status,
     });
+  }
+
+  async getAllJobsWithApplicants(userId: string, page: number, limit: number) {
+    console.log('Fetching jobs with applicants for user is:', userId);
+    const skip = (page - 1) * limit;
+    // Import Types from mongoose at the top: import { Types } from 'mongoose';
+    const results = await this.jobPostingModel.aggregate([
+      {
+        $match: {
+          postedBy: new Types.ObjectId(userId),
+          status: 'active', // optional filter if needed
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: limit,
+      },
+      {
+        $lookup: {
+          from: 'jobapplyings', // collection name for JobApplying
+          localField: '_id',
+          foreignField: 'appliedFor',
+          as: 'applicants',
+        },
+      },
+      {
+        $unwind: {
+          path: '$applicants',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: 'users', // collection name for User
+          localField: 'applicants.appliedBy',
+          foreignField: '_id',
+          as: 'applicants.user',
+        },
+      },
+      {
+        $unwind: {
+          path: '$applicants.user',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $group: {
+          _id: '$_id',
+          job: { $first: '$$ROOT' },
+          applicants: {
+            $push: {
+              _id: '$applicants._id',
+              appliedBy: '$applicants.appliedBy',
+              appliedAt: '$applicants.createdAt',
+              user: {
+                _id: '$applicants.user._id',
+                name: '$applicants.user.name',
+                email: '$applicants.user.email',
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          'job.applicants': '$applicants',
+        },
+      },
+      {
+        $replaceRoot: { newRoot: '$job' },
+      },
+    ]);
+
+    const total = await this.jobPostingModel.countDocuments({
+      postedBy: userId,
+    });
+
+    return {
+      data: results,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total,
+    };
   }
 }
