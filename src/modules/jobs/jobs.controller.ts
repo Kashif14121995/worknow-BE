@@ -226,4 +226,36 @@ export class JobsController {
         );
     }
   }
+
+  @Get('/job-with-applicants')
+  async findAllJobWithApplicants(
+    @Req() request: Request,
+    @Res() res: Response,
+    @Query() pagination: PaginationDto,
+  ): APIResponse {
+    try {
+      console.log('Fetching job applicants with pagination:', pagination);
+      const userId = request?.user?.id;
+      console.log('User ID:', userId);
+      const { page, limit } = pagination;
+      const data = await this.jobsService.getAllJobsWithApplicants(userId, page, limit);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      console.error('Error fetching job applicants:', error);
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
+              '{{email}}',
+              request.user?.email ?? 'unknown',
+            ),
+            error.message,
+          ),
+        );
+    }
+  }
 }
