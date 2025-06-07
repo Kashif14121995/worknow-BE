@@ -12,7 +12,7 @@ export class JobsService {
   constructor(
     @InjectModel(JobPosting.name) private jobPostingModel: Model<JobPosting>,
     @InjectModel(JobApplying.name) private jobApplyingModel: Model<JobApplying>,
-  ) { }
+  ) {}
   async create(CreateJobListingDto: CreateJobListingDto, userId: string) {
     return await this.jobPostingModel.create({
       ...CreateJobListingDto,
@@ -71,16 +71,52 @@ export class JobsService {
     };
   }
 
-  async findAll(userId: string, page: number = 1, limit: number = 10) {
+  async findAll(
+    userId: string,
+    role: string,
+    page: number = 1,
+    limit: number = 10,
+    searchText: string = '',
+  ) {
     const skip = (page - 1) * limit;
+
+    // Build match filter
+    const matchFilter: any = { postedBy: new Types.ObjectId(userId) };
+    if (searchText && searchText.trim() !== '') {
+      matchFilter.description = { $regex: searchText, $options: 'i' };
+    }
+
     const [jobs, total] = await Promise.all([
       this.jobPostingModel
-        .find({ postedBy: userId })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      this.jobPostingModel.countDocuments({ postedBy: userId }),
+        .aggregate([
+          { $match: matchFilter },
+          { $sort: { createdAt: -1 } },
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $lookup: {
+              from: 'jobapplyings',
+              localField: '_id',
+              foreignField: 'appliedFor',
+              as: 'applicants',
+            },
+          },
+          {
+            $addFields: {
+              applicantsCount: { $size: '$applicants' },
+            },
+          },
+          {
+            $project: {
+              status: 1,
+              createdAt: 1,
+              description: 1,
+              applicantsCount: 1,
+            },
+          },
+        ])
+        .exec(),
+      this.jobPostingModel.countDocuments(matchFilter),
     ]);
     return {
       jobs,

@@ -6,7 +6,7 @@ export enum AvailableJobs {
 export enum JobStatus {
   active = 'active',
   closed = 'closed',
-  onGoing = 'onGoing',
+  ongoing = 'ongoing',
   cancelled = 'cancelled',
 }
 

@@ -8,7 +8,7 @@ import {
   Delete,
   Req,
   Res,
-  Query
+  Query,
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { CreateJobListingDto } from './dto/create-job.dto';
@@ -36,7 +36,7 @@ export class JobsController {
   constructor(
     private readonly jobsService: JobsService,
     private readonly http: HttpStatusCodesService,
-  ) { }
+  ) {}
 
   @Post('listing')
   async create(
@@ -69,11 +69,26 @@ export class JobsController {
   }
 
   @Get('listing')
-  async findAll(@Req() request: Request,
-    @Res() res: Response) {
+  async findAll(@Req() request: Request, @Res() res: Response) {
     const userId = request?.user?.id;
+    const role = request?.user?.role;
+    const pageNumber = request.query.page
+      ? parseInt(String(request.query.page), 10)
+      : 1;
+    const pageLimit = request.query.limit
+      ? parseInt(String(request.query.limit), 10)
+      : 10;
+    const searchText = request.query.searchText
+      ? String(request.query.searchText)
+      : '';
     try {
-      const data = await this.jobsService.findAll(userId);
+      const data = await this.jobsService.findAll(
+        userId,
+        role,
+        pageNumber,
+        pageLimit,
+        searchText,
+      );
       return res
         .status(this.http.STATUS_OK)
         .json(
@@ -202,7 +217,11 @@ export class JobsController {
     try {
       const userId = request?.user?.id;
       const { page, limit } = pagination;
-      const data = await this.jobsService.getAllJobApplications(userId, page, limit);
+      const data = await this.jobsService.getAllJobApplications(
+        userId,
+        page,
+        limit,
+      );
       return res
         .status(this.http.STATUS_OK)
         .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
@@ -260,7 +279,11 @@ export class JobsController {
       const userId = request?.user?.id;
       console.log('User ID:', userId);
       const { page, limit } = pagination;
-      const data = await this.jobsService.getAllJobsWithApplicants(userId, page, limit);
+      const data = await this.jobsService.getAllJobsWithApplicants(
+        userId,
+        page,
+        limit,
+      );
       return res
         .status(this.http.STATUS_OK)
         .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
