@@ -26,6 +26,7 @@ import {
   UPDATE_SUCCESS,
 } from 'src/constants';
 import { Response } from 'express';
+import { SearchDto } from './dto/search.dto';
 
 @Controller('jobs')
 export class JobsController {
@@ -104,6 +105,33 @@ export class JobsController {
           new ErrorResponse(
             this.http.STATUS_INTERNAL_SERVER_ERROR,
             UPDATE_ERROR.replace('{{entity}}', 'job'),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get('/listing/shifts')
+  async findUserShiftsData(
+    @Req() request: Request,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const userId = request?.user?.id;
+      const data = await this.jobsService.getUserListingShiftsData(userId);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
+              '{{email}}',
+              request.user?.email ?? 'unknown',
+            ),
             error.message,
           ),
         );
@@ -241,33 +269,6 @@ export class JobsController {
     }
   }
 
-  @Get('/listing/shifts')
-  async findUserShiftsData(
-    @Req() request: Request,
-    @Res() res: Response,
-  ): APIResponse {
-    try {
-      const userId = request?.user?.id;
-      const data = await this.jobsService.getUserListingShiftsData(userId);
-      return res
-        .status(this.http.STATUS_OK)
-        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
-    } catch (error) {
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
-              '{{email}}',
-              request.user?.email ?? 'unknown',
-            ),
-            error.message,
-          ),
-        );
-    }
-  }
-
   @Get('/job-with-applicants')
   async findAllJobWithApplicants(
     @Req() request: Request,
@@ -289,6 +290,47 @@ export class JobsController {
         .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
     } catch (error) {
       console.error('Error fetching job applicants:', error);
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
+              '{{email}}',
+              request.user?.email ?? 'unknown',
+            ),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get('/job-applications')
+  async findJobApplications(
+    @Req() request: Request,
+    @Res() res: Response,
+    @Query() pagination: PaginationDto,
+    @Query() search: SearchDto,
+  ): APIResponse {
+    try {
+      console.log('Fetching job applications with pagination:', pagination);
+      const userId = request?.user?.id;
+      const role = request?.user?.role;
+      console.log('User ID:', userId);
+      const { page, limit } = pagination;
+      const { searchText } = search;
+      const data = await this.jobsService.getApplicationsReceived(
+        userId,
+        role,
+        page,
+        limit,
+        searchText,
+      );
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      console.error('Error fetching job applicantions:', error);
       return res
         .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
         .json(

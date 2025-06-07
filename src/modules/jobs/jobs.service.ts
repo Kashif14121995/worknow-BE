@@ -50,21 +50,22 @@ export class JobsService {
   async getUserListingShiftsData(userId: string) {
     const now = moment();
     const currentMinutes = now.hours() * 60 + now.minutes();
+    const userObjectId = new Types.ObjectId(userId);
     return {
       active: await this.jobPostingModel.find({
-        appliedBy: userId,
+        postedBy: userObjectId,
         status: JobStatus.active,
         shiftStartsAt: { $lte: currentMinutes },
         shiftEndsAt: { $gte: currentMinutes },
       }),
 
       inactive: await this.jobPostingModel.find({
-        appliedBy: userId,
+        postedBy: userObjectId,
         status: JobStatus.closed,
       }),
 
       upcoming: await this.jobPostingModel.find({
-        appliedBy: userId,
+        postedBy: userObjectId,
         status: JobStatus.active,
         shiftStartsAt: { $gte: currentMinutes },
       }),
@@ -181,7 +182,7 @@ export class JobsService {
       {
         $unwind: {
           path: '$applicants',
-          preserveNullAndEmptyArrays: true,
+          preserveNullAndEmptyArrays: false, // Only keep jobs with applicants
         },
       },
       {
@@ -195,7 +196,7 @@ export class JobsService {
       {
         $unwind: {
           path: '$applicants.user',
-          preserveNullAndEmptyArrays: true,
+          preserveNullAndEmptyArrays: false, // Only keep applicants with user
         },
       },
       {
@@ -224,17 +225,162 @@ export class JobsService {
       {
         $replaceRoot: { newRoot: '$job' },
       },
+      {
+        $match: {
+          applicants: { $ne: [], $exists: true },
+        },
+      },
     ]);
 
-    const total = await this.jobPostingModel.countDocuments({
-      postedBy: userId,
-    });
+    const total = results.length;
 
     return {
       data: results,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       totalItems: total,
+    };
+  }
+
+  async getApplicationsReceived(
+    userId: string,
+    role: string,
+    page: number = 1,
+    limit: number = 10,
+    searchText: string = '',
+  ) {
+    const skip = (page - 1) * limit;
+    // Build a regex for searchText if provided
+    const nameRegex =
+      searchText && searchText.trim() !== ''
+        ? new RegExp(searchText.trim(), 'i')
+        : null;
+
+    const applications = await this.jobPostingModel.aggregate([
+      {
+        $match: { postedBy: new Types.ObjectId(userId) },
+      },
+      {
+        $lookup: {
+          from: 'jobapplyings',
+          localField: '_id',
+          foreignField: 'appliedFor',
+          as: 'applications',
+        },
+      },
+      { $unwind: { path: '$applications', preserveNullAndEmptyArrays: false } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'applications.appliedBy',
+          foreignField: '_id',
+          as: 'applicant',
+        },
+      },
+      { $unwind: { path: '$applicant', preserveNullAndEmptyArrays: false } },
+      // Filter by applicant name if searchText is provided
+      ...(nameRegex
+        ? [
+            {
+              $match: {
+                $or: [
+                  { 'applicant.first_name': { $regex: nameRegex } },
+                  { 'applicant.last_name': { $regex: nameRegex } },
+                  {
+                    $expr: {
+                      $regexMatch: {
+                        input: {
+                          $concat: [
+                            '$applicant.first_name',
+                            ' ',
+                            '$applicant.last_name',
+                          ],
+                        },
+                        regex: nameRegex,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          ]
+        : []),
+      {
+        $project: {
+          _id: 0,
+          jobId: '$_id',
+          jobDescription: '$description',
+          applicantName: {
+            $concat: ['$applicant.first_name', ' ', '$applicant.last_name'],
+          },
+          applicantId: '$applicant._id',
+          applicationId: '$applications._id',
+          applicationStatus: '$applications.status',
+          appliedAt: '$applications.createdAt',
+        },
+      },
+      { $sort: { appliedAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+    ]);
+
+    // Optionally, get total count for pagination
+    const totalItems = await this.jobPostingModel.aggregate([
+      { $match: { postedBy: new Types.ObjectId(userId) } },
+      {
+        $lookup: {
+          from: 'jobapplyings',
+          localField: '_id',
+          foreignField: 'appliedFor',
+          as: 'applications',
+        },
+      },
+      { $unwind: { path: '$applications', preserveNullAndEmptyArrays: false } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'applications.appliedBy',
+          foreignField: '_id',
+          as: 'applicant',
+        },
+      },
+      { $unwind: { path: '$applicant', preserveNullAndEmptyArrays: false } },
+      ...(nameRegex
+        ? [
+            {
+              $match: {
+                $or: [
+                  { 'applicant.first_name': { $regex: nameRegex } },
+                  { 'applicant.last_name': { $regex: nameRegex } },
+                  {
+                    $expr: {
+                      $regexMatch: {
+                        input: {
+                          $concat: [
+                            '$applicant.first_name',
+                            ' ',
+                            '$applicant.last_name',
+                          ],
+                        },
+                        regex: nameRegex,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          ]
+        : []),
+      { $count: 'total' },
+    ]);
+    const total = totalItems[0]?.total || 0;
+
+    return {
+      applications,
+      total,
+      page,
+      limit: limit,
+      totalPages: Math.ceil(total / limit),
     };
   }
 }

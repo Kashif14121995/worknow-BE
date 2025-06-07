@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8008/api/v1",
+      "url": "http://localhost:8000/api/v1",
       "description": "Local server"
     }
   ],
