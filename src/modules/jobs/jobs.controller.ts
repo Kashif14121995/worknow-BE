@@ -13,7 +13,7 @@ import {
 import { JobsService } from './jobs.service';
 import { CreateJobListingDto } from './dto/create-job.dto';
 import { UpdateJobListingDto } from './dto/update-job.dto';
-import { JobStatus } from './constants';
+import { AvailableJobs, JobStatus, PaymentType } from './constants';
 import { APIResponse, Request } from 'src/types/express';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
 import { ErrorResponse, SuccessResponse } from 'src/utils/response';
@@ -318,13 +318,14 @@ export class JobsController {
       const role = request?.user?.role;
       console.log('User ID:', userId);
       const { page, limit } = pagination;
-      const { searchText } = search;
+      const { searchText, status } = search;
       const data = await this.jobsService.getApplicationsReceived(
         userId,
         role,
         page,
         limit,
         searchText,
+        status,
       );
       return res
         .status(this.http.STATUS_OK)
@@ -340,6 +341,72 @@ export class JobsController {
               '{{email}}',
               request.user?.email ?? 'unknown',
             ),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get('/job-types')
+  async listJobTypes(
+    @Req() request: Request,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const jobTypes = Object.values(AvailableJobs).map((job) => {
+        const label = job
+          .replace(/_/g, ' ')
+          .toLowerCase()
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+        return {
+          label,
+          value: job,
+        };
+      });
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(jobTypes, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      console.error('Error fetching job-types:', error);
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            error.message,
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get('/payment-types')
+  async listPaymentTypes(
+    @Req() request: Request,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const jobTypes = Object.values(PaymentType).map((job) => {
+        const label = job
+          .replace(/_/g, ' ')
+          .toLowerCase()
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+        return {
+          label,
+          value: job,
+        };
+      });
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(jobTypes, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      console.error('Error fetching job-types:', error);
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            error.message,
             error.message,
           ),
         );

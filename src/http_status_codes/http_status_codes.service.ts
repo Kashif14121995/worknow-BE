@@ -16,6 +16,7 @@ export class HttpStatusCodesService {
   readonly STATUS_MESSAGE_FOR_NOT_FOUND = getReasonPhrase(
     StatusCodes.NOT_FOUND,
   );
+  readonly STATUS_MESSAGE_FOR_WRONG_OTP = 'Invalid One Time Password';
   readonly STATUS_ALREADY_EXIST_MESSAGE = getReasonPhrase(StatusCodes.CONFLICT);
   readonly STATUS_MESSAGE_FOR_UNAUTHORIZED = getReasonPhrase(
     StatusCodes.UNAUTHORIZED,

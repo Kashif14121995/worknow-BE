@@ -10,7 +10,7 @@ import {
   Max,
 } from 'class-validator';
 
-import { AvailableJobs, paymentType } from '../constants';
+import { AvailableJobs, PaymentType } from '../constants';
 export class CreateJobListingDto {
   @IsString()
   address: string;
@@ -61,7 +61,7 @@ export class CreateJobListingDto {
   @Max(10000, { message: 'Very large number of openings provided' })
   maximumRequirements: number;
 
-  @IsEnum([paymentType.contractual, paymentType.per_hour])
+  @IsEnum([PaymentType.contractual, PaymentType.per_hour])
   paymentType: string;
 
   @IsNumber()

@@ -3,7 +3,7 @@ import mongoose, { HydratedDocument } from 'mongoose';
 import {
   JobStatus,
   AvailableJobs,
-  paymentType,
+  PaymentType,
   JobApplicationAppliedStatus,
 } from '../constants';
 
@@ -59,7 +59,7 @@ export class JobPosting {
   @Prop()
   maximumRequirements: number;
 
-  @Prop({ enum: [paymentType.contractual, paymentType.per_hour] })
+  @Prop({ enum: [PaymentType.contractual, PaymentType.per_hour] })
   paymentType: string;
 
   @Prop()

@@ -153,9 +153,12 @@ export class AuthService extends HttpStatusCodesService {
   }
 
   async verifyOTp({ email, otp }: loginWithOTPUserDto) {
-    const user = await this.userModel.findOne({ email, otp });
+    const user = await this.userModel.findOne({ email });
     if (!user) {
       throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
+    }
+    if (user.otp !== otp) {
+      throw new Error(this.STATUS_MESSAGE_FOR_WRONG_OTP);
     }
     const userDbDetails = user.toObject();
 

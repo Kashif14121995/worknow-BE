@@ -10,14 +10,17 @@ export enum JobStatus {
   cancelled = 'cancelled',
 }
 
-export enum paymentType {
+export enum PaymentType {
   contractual = 'contractual',
   per_hour = 'per_hour',
+  hourly = 'hourly',
+  monthly = 'monthly',
 }
 
 export enum JobApplicationAppliedStatus {
-  hired,
   applied,
+  shortlisted,
   rejected,
+  hired,
   completed,
 }

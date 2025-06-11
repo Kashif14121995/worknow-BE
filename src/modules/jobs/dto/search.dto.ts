@@ -4,4 +4,5 @@ export class SearchDto {
   @IsOptional()
   @IsString()
   searchText?: string = '';
+  status?: string;
 }

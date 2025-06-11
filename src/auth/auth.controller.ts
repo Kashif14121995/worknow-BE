@@ -19,11 +19,12 @@ export class AuthController {
   private readonly USER_CREATED_SUCCESSFULLY = 'User Created successfully';
   private readonly USER_CREATED_ERROR = 'Error Creating User Data';
   private readonly USER_NOT_FOUND = 'User Not Found';
+  private readonly INVALID_OTP = 'Invalid One Time Password';
   private readonly USER_UNAUTHORIZED = 'The input Password is wrong';
   private readonly USER_DATA_FETCHED_SUCCESSFULLY =
     'Successfully fetched user data';
   private readonly ALREADY_EXIST = 'User with Email already exists';
-  private readonly USER_OTP_SESSION_EXPIRED = `otp session  expired`;
+  private readonly USER_OTP_SESSION_EXPIRED = `OTP session  expired`;
   private readonly FORGOT_PASSWORD_REQUEST_SEND_SUCCESS = `Successfully sent forgot-password mail`;
 
   constructor(
@@ -220,11 +221,22 @@ export class AuthController {
     } catch (error) {
       if (error.message === this.http.STATUS_MESSAGE_FOR_NOT_FOUND) {
         return res
-          .status(this.http.STATUS_NOT_FOUND)
+          .status(this.http.STATUS_OK)
           .json(
             new ErrorResponse(
-              this.http.STATUS_NOT_FOUND,
+              this.http.STATUS_OK,
               this.USER_NOT_FOUND,
+              error.message,
+            ),
+          );
+      }
+      if (error.message === this.http.STATUS_MESSAGE_FOR_WRONG_OTP) {
+        return res
+          .status(this.http.STATUS_OK)
+          .json(
+            new ErrorResponse(
+              this.http.STATUS_OK,
+              this.INVALID_OTP,
               error.message,
             ),
           );

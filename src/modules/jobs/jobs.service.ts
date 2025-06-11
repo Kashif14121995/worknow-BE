@@ -248,6 +248,7 @@ export class JobsService {
     page: number = 1,
     limit: number = 10,
     searchText: string = '',
+    status: string = '',
   ) {
     const skip = (page - 1) * limit;
     // Build a regex for searchText if provided
@@ -256,10 +257,13 @@ export class JobsService {
         ? new RegExp(searchText.trim(), 'i')
         : null;
 
-    const applications = await this.jobPostingModel.aggregate([
-      {
-        $match: { postedBy: new Types.ObjectId(userId) },
-      },
+    // Build status filter if provided
+    const statusFilter =
+      status && status.trim() !== '' ? { 'applications.status': status } : {};
+
+    const matchStages = [{ $match: { postedBy: new Types.ObjectId(userId) } }];
+
+    const lookupStages = [
       {
         $lookup: {
           from: 'jobapplyings',
@@ -278,33 +282,41 @@ export class JobsService {
         },
       },
       { $unwind: { path: '$applicant', preserveNullAndEmptyArrays: false } },
-      // Filter by applicant name if searchText is provided
-      ...(nameRegex
-        ? [
+    ];
+
+    // Add status filter if provided
+    let extraMatchStages: any[] = [];
+    if (Object.keys(statusFilter).length > 0) {
+      extraMatchStages.push({ $match: statusFilter });
+    }
+
+    // Add name search filter if provided
+    if (nameRegex) {
+      extraMatchStages.push({
+        $match: {
+          $or: [
+            { 'applicant.first_name': { $regex: nameRegex } },
+            { 'applicant.last_name': { $regex: nameRegex } },
             {
-              $match: {
-                $or: [
-                  { 'applicant.first_name': { $regex: nameRegex } },
-                  { 'applicant.last_name': { $regex: nameRegex } },
-                  {
-                    $expr: {
-                      $regexMatch: {
-                        input: {
-                          $concat: [
-                            '$applicant.first_name',
-                            ' ',
-                            '$applicant.last_name',
-                          ],
-                        },
-                        regex: nameRegex,
-                      },
-                    },
+              $expr: {
+                $regexMatch: {
+                  input: {
+                    $concat: [
+                      '$applicant.first_name',
+                      ' ',
+                      '$applicant.last_name',
+                    ],
                   },
-                ],
+                  regex: nameRegex,
+                },
               },
             },
-          ]
-        : []),
+          ],
+        },
+      });
+    }
+
+    const projectAndPaginateStages = [
       {
         $project: {
           _id: 0,
@@ -322,57 +334,23 @@ export class JobsService {
       { $sort: { appliedAt: -1 } },
       { $skip: skip },
       { $limit: limit },
+    ];
+
+    const applications = await this.jobPostingModel.aggregate([
+      ...matchStages,
+      ...lookupStages,
+      ...extraMatchStages,
+      ...projectAndPaginateStages,
     ]);
 
-    // Optionally, get total count for pagination
-    const totalItems = await this.jobPostingModel.aggregate([
-      { $match: { postedBy: new Types.ObjectId(userId) } },
-      {
-        $lookup: {
-          from: 'jobapplyings',
-          localField: '_id',
-          foreignField: 'appliedFor',
-          as: 'applications',
-        },
-      },
-      { $unwind: { path: '$applications', preserveNullAndEmptyArrays: false } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'applications.appliedBy',
-          foreignField: '_id',
-          as: 'applicant',
-        },
-      },
-      { $unwind: { path: '$applicant', preserveNullAndEmptyArrays: false } },
-      ...(nameRegex
-        ? [
-            {
-              $match: {
-                $or: [
-                  { 'applicant.first_name': { $regex: nameRegex } },
-                  { 'applicant.last_name': { $regex: nameRegex } },
-                  {
-                    $expr: {
-                      $regexMatch: {
-                        input: {
-                          $concat: [
-                            '$applicant.first_name',
-                            ' ',
-                            '$applicant.last_name',
-                          ],
-                        },
-                        regex: nameRegex,
-                      },
-                    },
-                  },
-                ],
-              },
-            },
-          ]
-        : []),
+    // For total count
+    const countStages = [
+      ...matchStages,
+      ...lookupStages,
+      ...extraMatchStages,
       { $count: 'total' },
-    ]);
+    ];
+    const totalItems = await this.jobPostingModel.aggregate(countStages);
     const total = totalItems[0]?.total || 0;
 
     return {
