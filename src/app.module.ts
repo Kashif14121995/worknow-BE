@@ -8,7 +8,7 @@ import { BcryptService } from './bcrypt/bcrypt.service';
 import { HttpStatusCodesService } from './http_status_codes/http_status_codes.service';
 import { MailModule } from './mail/mail.module';
 import * as Joi from 'joi';
-import envConfig from '../env.config';
+import envConfig from './env.config';
 import * as autoPopulate from 'mongoose-autopopulate';
 import { LoggerMiddleware } from './common/utils/logger';
 import { StripeModule } from './stripe/stripe.module';
