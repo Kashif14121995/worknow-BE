@@ -84,7 +84,7 @@ export class JobsService {
     // Build match filter
     const matchFilter: any = { postedBy: new Types.ObjectId(userId) };
     if (searchText && searchText.trim() !== '') {
-      matchFilter.description = { $regex: searchText, $options: 'i' };
+      matchFilter.jobTitle = { $regex: searchText, $options: 'i' };
     }
 
     const [jobs, total] = await Promise.all([
@@ -109,6 +109,7 @@ export class JobsService {
           },
           {
             $project: {
+              jobTitle: 1,
               status: 1,
               createdAt: 1,
               description: 1,

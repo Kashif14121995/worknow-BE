@@ -2,7 +2,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import {
   JobStatus,
-  AvailableJobs,
   PaymentType,
   JobApplicationAppliedStatus,
 } from '../constants';
@@ -12,69 +11,64 @@ export type JobPostingDocument = HydratedDocument<JobPosting>;
 @Schema({ timestamps: true })
 export class JobPosting {
   @Prop()
-  createdAt?: Date;
+  jobTitle: string;
 
   @Prop()
-  updatedAt?: Date;
-
-  @Prop({
-    enum: JobStatus,
-    default: JobStatus.active,
-  })
-  status: string;
+  jobType: string; // e.g., part-time, full-time
 
   @Prop()
-  address: string;
+  industry: string;
 
   @Prop()
-  zipCode: string;
+  shiftDuration: string;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  postedBy: mongoose.Types.ObjectId;
+  @Prop({ type: Date })
+  shiftStartsAt: Date;
 
-  @Prop({ enum: AvailableJobs })
-  type: string;
-
-  @Prop({ default: [] })
-  tags: string[];
+  @Prop({ type: Date })
+  shiftEndsAt: Date;
 
   @Prop()
-  country: string;
-
-  @Prop()
-  state: string;
-
-  @Prop()
-  city: string;
+  workLocation: string;
 
   @Prop()
   description: string;
 
   @Prop()
-  companyName: string;
+  amount: number;
 
-  @Prop()
-  minimumRequirements: number;
-
-  @Prop()
-  maximumRequirements: number;
-
-  @Prop({ enum: [PaymentType.contractual, PaymentType.per_hour] })
+  @Prop({ enum: PaymentType })
   paymentType: string;
 
   @Prop()
-  payment: number;
+  preferredShift: string;
 
   @Prop()
-  shiftStartsAt: number;
+  matchScore: number;
+
+  @Prop({ default: false })
+  enableSmartRecommendations: boolean;
+
+  @Prop({ default: false })
+  autoShortlistCandidates: boolean;
 
   @Prop()
-  shiftEndsAt: number;
+  experienceLevel: string;
+
+  @Prop()
+  education: string;
+
+  @Prop({ type: [String], default: [] })
+  requiredSkills: string[];
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
+  postedBy: mongoose.Types.ObjectId;
+
+  @Prop({ enum: JobStatus, default: JobStatus.active })
+  status: string;
 }
 
-const JobPostingSchema = SchemaFactory.createForClass(JobPosting);
-
-export { JobPostingSchema };
+export const JobPostingSchema = SchemaFactory.createForClass(JobPosting);
 
 @Schema({ timestamps: true })
 export class JobApplying {

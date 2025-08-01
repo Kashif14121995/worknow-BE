@@ -8,68 +8,73 @@ import {
   IsArray,
   Min,
   Max,
+  IsBoolean,
+  IsDateString,
 } from 'class-validator';
 
-import { AvailableJobs, PaymentType } from '../constants';
+import { PaymentType } from '../constants';
+
 export class CreateJobListingDto {
   @IsString()
-  address: string;
+  @MinLength(3)
+  jobTitle: string;
 
   @IsString()
-  zipCode: string;
-
-  @IsEnum(AvailableJobs)
-  type: string;
-
-  @IsArray() // Ensures it's an array
-  @IsOptional() // Allows the field to be missing or `undefined`
-  @IsString({ each: true }) // Ensures each element is a string
-  tags?: string[];
+  @MinLength(3)
+  jobType: string;
 
   @IsString()
-  @MinLength(3, { message: 'country too short' })
-  @MaxLength(50, { message: 'country too long' })
-  country: string;
+  @MinLength(2)
+  industry: string;
 
   @IsString()
-  @MinLength(3, { message: 'state too short' })
-  @MaxLength(50, { message: 'state too long' })
-  state: string;
+  shiftDuration: string;
+
+  @IsDateString(
+    {},
+    { message: 'shiftStartsAt must be a valid ISO date string' },
+  )
+  shiftStartsAt: string;
+
+  @IsDateString({}, { message: 'shiftEndsAt must be a valid ISO date string' })
+  shiftEndsAt: string;
 
   @IsString()
-  @MinLength(3, { message: 'city too short' })
-  @MaxLength(50, { message: 'city too long' })
-  city: string;
+  workLocation: string;
 
   @IsString()
-  @MinLength(10, { message: 'Description too short' })
-  @MaxLength(500, { message: 'Description too long' })
+  @MinLength(10)
+  @MaxLength(1000)
   description: string;
 
+  @IsNumber()
+  @Min(0)
+  amount: number;
+
+  @IsEnum(PaymentType, { message: 'paymentType must be hourly or contractual' })
+  paymentType: PaymentType;
+
   @IsString()
-  @MinLength(4, { message: 'company name too short' })
-  @MaxLength(50, { message: 'company name too long' })
-  companyName: string;
+  preferredShift: string;
 
   @IsNumber()
-  @Min(1, { message: 'At least hire one person' })
-  @Max(10000, { message: 'Very large number of openings provided' })
-  minimumRequirements: number;
+  @Min(0)
+  @Max(100)
+  matchScore: number;
 
-  @IsNumber()
-  @Min(1, { message: 'At least hire one person' })
-  @Max(10000, { message: 'Very large number of openings provided' })
-  maximumRequirements: number;
+  @IsBoolean()
+  enableSmartRecommendations: boolean;
 
-  @IsEnum([PaymentType.contractual, PaymentType.per_hour])
-  paymentType: string;
+  @IsBoolean()
+  autoShortlistCandidates: boolean;
 
-  @IsNumber()
-  payment: number;
+  @IsString()
+  experienceLevel: string;
 
-  @IsNumber()
-  shiftStartsAt: number;
+  @IsString()
+  education: string;
 
-  @IsNumber()
-  shiftEndsAt: number;
+  @IsArray()
+  @IsString({ each: true })
+  requiredSkills: string[];
 }
