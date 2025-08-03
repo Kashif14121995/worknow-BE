@@ -1,2 +1,2 @@
 export * from './user.schema';
-export * from './newsletter.schema';
+export * from './contact-us.schema';

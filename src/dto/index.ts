@@ -1,2 +1,2 @@
 export * from './user';
-export * from './newsletter';
+export * from './contact-us';

@@ -1,29 +1,29 @@
 import { Body, Controller, Post, Res, Get } from '@nestjs/common';
 import { Response } from 'express';
-import { NewsletterService } from './newsletter.service';
+import { ContactUsService } from './contact-us.service';
 import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
 import { Public } from 'src/plugin/public';
 import { ErrorResponse, SuccessResponse } from 'src/utils/response';
-import { SubscribeDto } from 'src/dto';
+import { ContactUsDto } from 'src/dto';
 
-@Controller('newsletter')
-export class NewsletterController {
+@Controller('contact-us')
+export class ContactUsController {
   constructor(
-    private readonly newsletterService: NewsletterService,
+    private readonly contactUsService: ContactUsService,
     private readonly http: HttpStatusCodesService,
   ) {}
 
   @Public()
-  @Post('subscribe')
-  async subscribe(
-    @Body() body: SubscribeDto,
+  @Post()
+  async submit(
+    @Body() body: ContactUsDto,
     @Res() res: Response,
   ): Promise<void> {
     try {
-      const result = await this.newsletterService.subscribe(body.email);
+      const result = await this.contactUsService.submit(body);
       res
         .status(this.http.STATUS_SUCCESSFULLY_CREATION)
-        .json(new SuccessResponse(result, 'Subscribed successfully'));
+        .json(new SuccessResponse(result, 'Message submitted successfully'));
     } catch (error) {
       if (error.name === 'ConflictException') {
         res
@@ -31,7 +31,7 @@ export class NewsletterController {
           .json(
             new ErrorResponse(
               this.http.STATUS_ALREADY_EXIST,
-              'Already Subscribed',
+              'Already Submitted',
               error.message,
             ),
           );
@@ -41,7 +41,7 @@ export class NewsletterController {
           .json(
             new ErrorResponse(
               this.http.STATUS_INTERNAL_SERVER_ERROR,
-              'Subscription Failed',
+              'Submission Failed',
               error.message,
             ),
           );
@@ -49,20 +49,20 @@ export class NewsletterController {
     }
   }
 
-  @Get()
+  @Get('list')
   async getAll(@Res() res: Response): Promise<void> {
     try {
-      const emails = await this.newsletterService.findAll();
+      const entries = await this.contactUsService.findAll();
       res
         .status(this.http.STATUS_OK)
-        .json(new SuccessResponse(emails, 'All subscribers fetched'));
+        .json(new SuccessResponse(entries, 'All messages fetched'));
     } catch (error) {
       res
         .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
         .json(
           new ErrorResponse(
             this.http.STATUS_INTERNAL_SERVER_ERROR,
-            'Failed to fetch subscribers',
+            'Failed to fetch messages',
             error.message,
           ),
         );

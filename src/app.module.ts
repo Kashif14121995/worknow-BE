@@ -15,7 +15,7 @@ import { StripeModule } from './stripe/stripe.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { AwsModule } from './aws/aws.module';
 import { JobsModule } from './modules/jobs/jobs.module';
-import { NewsletterModule } from './newsletter/newsletter.module';
+import { ContactUsModule } from './contact-us/contact-us.module';
 @Module({
   imports: [
     AuthModule,
@@ -47,7 +47,7 @@ import { NewsletterModule } from './newsletter/newsletter.module';
     WebhooksModule,
     AwsModule,
     JobsModule,
-    NewsletterModule,
+    ContactUsModule,
   ],
   controllers: [AppController],
   providers: [AppService, BcryptService, HttpStatusCodesService],
