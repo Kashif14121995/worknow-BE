@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsOptional,
   IsNumber,
+  IsIn,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { UserRole } from 'src/auth/constants';
@@ -79,6 +80,10 @@ export class loginWithGoogleUserDto {
     message: `role no match with either ${UserRole.job_provider} or ${UserRole.job_seeker}`,
   })
   role: string;
+
+  @IsOptional()
+  @IsIn(['web', 'native'])
+  platform?: 'web' | 'native';
 }
 
 export class ForgotPasswordDto {

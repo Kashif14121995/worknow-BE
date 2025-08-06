@@ -22,7 +22,9 @@ export class AuthService extends HttpStatusCodesService {
   private bcryptService: BcryptService = new BcryptService();
   private readonly OTP_EXPIRATION_TIME: number = 300000;
   private oauth2Client;
+
   private frontEndBaseUrl: string;
+  private googleWebClientId: string;
 
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
@@ -45,6 +47,7 @@ export class AuthService extends HttpStatusCodesService {
       GOOGLE_REDIRECT_URI,
     );
     this.frontEndBaseUrl = configService.get<string>('FRONTEND_BASE_URL');
+    this.googleWebClientId = GOOGLE_CLIENT_ID;
   }
 
   async createJWTTokenForUser(user) {
@@ -101,27 +104,27 @@ export class AuthService extends HttpStatusCodesService {
   }
 
   async loginWithGoogle(userGoogleInfo: loginWithGoogleUserDto) {
-    const { tokens } = await this.oauth2Client.getToken(userGoogleInfo.code);
-    this.oauth2Client.setCredentials(tokens);
-
-    const oauth2 = google.oauth2({
-      version: 'v2',
-      auth: this.oauth2Client,
+    const ticket = await this.oauth2Client.verifyIdToken({
+      idToken: userGoogleInfo.code,
+      audience: this.googleWebClientId, // must match the one in your frontend
     });
 
-    const userInfo = await oauth2.userinfo.v2.me.get();
+    const payload = ticket.getPayload();
 
     const user = await this.userModel.findOne({
-      email: userInfo.data.email,
+      email: payload.email,
       role: userGoogleInfo.role,
     });
+
     if (!user) {
       throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
     }
+
     const userDbDetails = user.toObject();
 
     const access_token = await this.createJWTTokenForUser(userDbDetails);
     const { password: _, ...restUserData } = userDbDetails;
+
     return { access_token, ...restUserData };
   }
 

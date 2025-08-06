@@ -18,7 +18,7 @@ import { Public } from 'src/plugin/public';
 export class AuthController {
   private readonly USER_CREATED_SUCCESSFULLY = 'User Created successfully';
   private readonly USER_CREATED_ERROR = 'Error Creating User Data';
-  private readonly USER_NOT_FOUND = 'User Not Found';
+  private readonly LOGIN_FAILED = 'Please check your credentials.';
   private readonly INVALID_OTP = 'Invalid One Time Password';
   private readonly USER_UNAUTHORIZED = 'The input Password is wrong';
   private readonly USER_DATA_FETCHED_SUCCESSFULLY =
@@ -87,7 +87,7 @@ export class AuthController {
           .json(
             new ErrorResponse(
               this.http.STATUS_NOT_FOUND,
-              this.USER_NOT_FOUND,
+              this.LOGIN_FAILED,
               error.message,
             ),
           );
@@ -133,7 +133,7 @@ export class AuthController {
           .json(
             new ErrorResponse(
               this.http.STATUS_NOT_FOUND,
-              this.USER_NOT_FOUND,
+              this.LOGIN_FAILED,
               error.message,
             ),
           );
@@ -179,7 +179,7 @@ export class AuthController {
           .json(
             new ErrorResponse(
               this.http.STATUS_NOT_FOUND,
-              this.USER_NOT_FOUND,
+              this.LOGIN_FAILED,
               error.message,
             ),
           );
@@ -225,7 +225,7 @@ export class AuthController {
           .json(
             new ErrorResponse(
               this.http.STATUS_OK,
-              this.USER_NOT_FOUND,
+              this.LOGIN_FAILED,
               error.message,
             ),
           );
@@ -284,7 +284,7 @@ export class AuthController {
           .json(
             new ErrorResponse(
               this.http.STATUS_NOT_FOUND,
-              this.USER_NOT_FOUND,
+              this.LOGIN_FAILED,
               error.message,
             ),
           );
