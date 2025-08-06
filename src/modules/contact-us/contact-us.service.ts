@@ -1,8 +1,8 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { ContactUs, ContactUsDocument } from '../schemas/contact-us.schema';
-import { ContactUsDto } from 'src/dto';
+import { ContactUs, ContactUsDocument } from '../../schemas/contact-us.schema';
+import { ContactUsDto } from './dto/contact-us.dto';
 
 @Injectable()
 export class ContactUsService {

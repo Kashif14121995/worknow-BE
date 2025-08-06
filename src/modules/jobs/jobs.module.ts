@@ -3,14 +3,14 @@ import { JobsService } from './jobs.service';
 import { JobsController } from './jobs.controller';
 // import { APP_GUARD } from '@nestjs/core';
 // import { AuthGuard } from 'src/auth/auth.guard';
-import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
+import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
   JobApplying,
   JobApplyingSchema,
   JobPosting,
   JobPostingSchema,
-} from './entities/job.entity';
+} from '../../schemas/job.schema';
 import { JwtService } from '@nestjs/jwt';
 
 @Module({

@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ContactUs, ContactUsSchema } from '../schemas/contact-us.schema';
+import { ContactUs, ContactUsSchema } from '../../schemas/contact-us.schema';
 import { ContactUsService } from './contact-us.service';
 import { ContactUsController } from './contact-us.controller';
-import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
+import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 
 @Module({
   imports: [

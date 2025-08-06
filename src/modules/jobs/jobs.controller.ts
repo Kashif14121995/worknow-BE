@@ -13,11 +13,11 @@ import {
 import { JobsService } from './jobs.service';
 import { CreateJobListingDto } from './dto/create-job.dto';
 import { UpdateJobListingDto } from './dto/update-job.dto';
-import { AvailableJobs, JobStatus, PaymentType } from './constants';
-import { APIResponse, Request } from 'src/types/express';
-import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
-import { ErrorResponse, SuccessResponse } from 'src/utils/response';
-import { PaginationDto } from './dto/pagination.dto';
+import { AvailableJobs, JobStatus, PaymentType } from 'src/constants';
+import { APIResponse, Request } from 'src/common/types/express';
+import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
+import { ErrorResponse, SuccessResponse } from 'src/common/utils/response';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 import {
   CREATED_ERROR,
   CREATED_SUCCESS,
@@ -27,8 +27,19 @@ import {
 } from 'src/constants';
 import { Response } from 'express';
 import { SearchDto } from './dto/search.dto';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 @Controller('jobs')
+@ApiTags('Jobs')
+@ApiBearerAuth()
 export class JobsController {
   private readonly FIND_USER_JOBS_ERROR = `Error fetching user job details for user with email {{email}} for {{status}} jobs`;
   private readonly FIND_USER_JOB_APPLICANTS_ERROR = `Error fetching user job applicants for user with email {{email}} `;
@@ -40,6 +51,10 @@ export class JobsController {
   ) {}
 
   @Post('listing')
+  @ApiOperation({ summary: 'Create a new job listing' })
+  @ApiBody({ type: CreateJobListingDto })
+  @ApiResponse({ status: 201, description: 'Job created successfully' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   async create(
     @Body() CreateJobListingDto: CreateJobListingDto,
     @Req() request: Request,
@@ -70,6 +85,11 @@ export class JobsController {
   }
 
   @Get('listing')
+  @ApiOperation({ summary: 'Get all job listings (paginated)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'searchText', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Jobs fetched successfully' })
   async findAll(@Req() request: Request, @Res() res: Response) {
     const userId = request?.user?.id;
     const role = request?.user?.role;
@@ -112,6 +132,11 @@ export class JobsController {
   }
 
   @Get('/listing/shifts')
+  @ApiOperation({
+    summary: 'Get job listing shifts for the authenticated user',
+  })
+  @ApiResponse({ status: 200, description: 'Data fetched successfully' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   async findUserShiftsData(
     @Req() request: Request,
     @Res() res: Response,
@@ -139,11 +164,18 @@ export class JobsController {
   }
 
   @Get('listing/:id')
+  @ApiOperation({ summary: 'Get job listing by ID' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Job fetched successfully' })
   findOne(@Param('id') id: string) {
     return this.jobsService.findOne(id);
   }
 
   @Patch('listing/:id')
+  @ApiOperation({ summary: 'Update job listing by ID' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: UpdateJobListingDto })
+  @ApiResponse({ status: 200, description: 'Job updated successfully' })
   async update(
     @Param('id') id: string,
     @Res() res: Response,
@@ -173,11 +205,32 @@ export class JobsController {
   }
 
   @Delete('listing/:id')
+  @ApiOperation({ summary: 'Delete a job by ID' })
+  @ApiParam({ name: 'id', type: String, description: 'Job ID' })
+  @ApiResponse({ status: 200, description: 'Job deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Job not found' })
   remove(@Param('id') id: string) {
     return this.jobsService.remove(id);
   }
 
   @Get('/user/listing/:status')
+  @ApiOperation({ summary: 'Get jobs for user filtered by status' })
+  @ApiParam({
+    name: 'status',
+    required: true,
+    enum: JobStatus,
+    description: 'Filter jobs by status (e.g., pending, completed, cancelled)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of jobs fetched successfully',
+    type: SuccessResponse, // Optionally, you can specify a DTO for better Swagger schema
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error',
+    type: ErrorResponse,
+  })
   async findUserJobs(
     @Param('status') status: JobStatus,
     @Req() request: Request,
@@ -206,6 +259,9 @@ export class JobsController {
   }
 
   @Post('/apply/:jobId')
+  @ApiOperation({ summary: 'Apply for a job by ID' })
+  @ApiParam({ name: 'jobId', type: String })
+  @ApiResponse({ status: 201, description: 'Application successful' })
   async applyForJob(
     @Req() request: Request,
     @Res() res: Response,
@@ -237,6 +293,10 @@ export class JobsController {
   }
 
   @Get('/applicants')
+  @ApiOperation({ summary: 'Get all applicants (paginated)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Applicants fetched successfully' })
   async findAllApplicants(
     @Req() request: Request,
     @Res() res: Response,
@@ -270,6 +330,10 @@ export class JobsController {
   }
 
   @Get('/job-with-applicants')
+  @ApiOperation({ summary: 'Get all applicants (paginated)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Applicants fetched successfully' })
   async findAllJobWithApplicants(
     @Req() request: Request,
     @Res() res: Response,
@@ -306,6 +370,10 @@ export class JobsController {
   }
 
   @Get('/job-applications')
+  @ApiOperation({ summary: 'Get all Job Applications of a Lister' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Applicants fetched successfully' })
   async findJobApplications(
     @Req() request: Request,
     @Res() res: Response,
@@ -348,6 +416,8 @@ export class JobsController {
   }
 
   @Get('/job-types')
+  @ApiOperation({ summary: 'List available job types' })
+  @ApiResponse({ status: 200, description: 'Job types fetched successfully' })
   async listJobTypes(
     @Req() request: Request,
     @Res() res: Response,
@@ -381,6 +451,11 @@ export class JobsController {
   }
 
   @Get('/payment-types')
+  @ApiOperation({ summary: 'List available payment types' })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment types fetched successfully',
+  })
   async listPaymentTypes(
     @Req() request: Request,
     @Res() res: Response,

@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import { UserRole } from 'src/auth/constants';
+import { UserRole } from 'src/constants';
 export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true })

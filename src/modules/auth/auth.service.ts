@@ -5,14 +5,14 @@ import { Model } from 'mongoose';
 import {
   CreateUserDto,
   ForgotPasswordDto,
-  loginUserDto,
-  loginWithGoogleUserDto,
-  loginWithOTPUserDto,
-} from 'src/dto';
-import { BcryptService } from 'src/bcrypt/bcrypt.service';
-import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
+  LoginUserDto,
+  LoginWithGoogleUserDto,
+  LoginWithOTPUserDto,
+} from './dto/user.dto';
+import { BcryptService } from 'src/modules/bcrypt/bcrypt.service';
+import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 import { JwtService } from '@nestjs/jwt';
-import { MailService } from 'src/mail/mail.service';
+import { MailService } from 'src/modules/mail/mail.service';
 import { randomInt } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
@@ -80,7 +80,7 @@ export class AuthService extends HttpStatusCodesService {
     }
   }
 
-  async login(userInfo: loginUserDto) {
+  async login(userInfo: LoginUserDto) {
     const user = await this.userModel.findOne({
       email: userInfo.email,
       role: userInfo.role,
@@ -103,7 +103,7 @@ export class AuthService extends HttpStatusCodesService {
     return { access_token, ...restUserData };
   }
 
-  async loginWithGoogle(userGoogleInfo: loginWithGoogleUserDto) {
+  async loginWithGoogle(userGoogleInfo: LoginWithGoogleUserDto) {
     const ticket = await this.oauth2Client.verifyIdToken({
       idToken: userGoogleInfo.code,
       audience: this.googleWebClientId, // must match the one in your frontend
@@ -128,7 +128,7 @@ export class AuthService extends HttpStatusCodesService {
     return { access_token, ...restUserData };
   }
 
-  async loginWithOTp({ email }: loginWithOTPUserDto) {
+  async loginWithOTp({ email }: LoginWithOTPUserDto) {
     const user = await this.userModel.findOne({ email });
     if (!user) {
       throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
@@ -155,7 +155,7 @@ export class AuthService extends HttpStatusCodesService {
     return true;
   }
 
-  async verifyOTp({ email, otp }: loginWithOTPUserDto) {
+  async verifyOTp({ email, otp }: LoginWithOTPUserDto) {
     const user = await this.userModel.findOne({ email });
     if (!user) {
       throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);

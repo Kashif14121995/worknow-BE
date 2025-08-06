@@ -4,7 +4,7 @@ import {
   JobStatus,
   PaymentType,
   JobApplicationAppliedStatus,
-} from '../constants';
+} from 'src/constants';
 
 export type JobPostingDocument = HydratedDocument<JobPosting>;
 

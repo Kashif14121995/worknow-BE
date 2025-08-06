@@ -1,19 +1,21 @@
 import { Controller, Post, Body, Res } from '@nestjs/common';
 import { Response } from 'express'; // Import Response type
 
+import { AuthService } from './auth.service';
+import { SuccessResponse, ErrorResponse } from 'src/common/utils/response';
+import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
+import { APIResponse } from 'src/common/types/express';
+import { Public } from 'src/plugin/public';
 import {
   CreateUserDto,
   ForgotPasswordDto,
-  loginUserDto,
-  loginWithGoogleUserDto,
-  loginWithOTPUserDto as userEmailDetailsDto,
-} from 'src/dto';
-import { AuthService } from './auth.service';
-import { SuccessResponse, ErrorResponse } from 'src/utils/response';
-import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
-import { APIResponse } from 'src/types/express';
-import { Public } from 'src/plugin/public';
+  LoginUserDto,
+  LoginWithGoogleUserDto,
+  LoginWithOTPUserDto as userEmailDetailsDto,
+} from './dto/user.dto';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Auth') // Groups this controller under 'Auth' section in Swagger
 @Controller('auth')
 export class AuthController {
   private readonly USER_CREATED_SUCCESSFULLY = 'User Created successfully';
@@ -34,6 +36,10 @@ export class AuthController {
 
   @Public()
   @Post('signup')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiBody({ type: CreateUserDto })
+  @ApiResponse({ status: 201, description: 'User created successfully' })
+  @ApiResponse({ status: 409, description: 'User already exists' })
   async signup(
     @Body() CreateUserDto: CreateUserDto,
     @Res() res: Response,
@@ -71,8 +77,12 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiBody({ type: LoginUserDto })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logIn(
-    @Body() loginUserDto: loginUserDto,
+    @Body() loginUserDto: LoginUserDto,
     @Res() res: Response,
   ): APIResponse {
     try {
@@ -117,6 +127,9 @@ export class AuthController {
 
   @Public()
   @Post('login-with-otp')
+  @ApiOperation({ summary: 'Login with OTP' })
+  @ApiBody({ type: userEmailDetailsDto })
+  @ApiResponse({ status: 200, description: 'Login successful with OTP' })
   async logInWithOTP(
     @Body() loginUserDto: userEmailDetailsDto,
     @Res() res: Response,
@@ -163,8 +176,11 @@ export class AuthController {
 
   @Public()
   @Post('login-with-google')
+  @ApiOperation({ summary: 'Login with Google' })
+  @ApiBody({ type: LoginWithGoogleUserDto })
+  @ApiResponse({ status: 200, description: 'Login successful with Google' })
   async logInWithGoogle(
-    @Body() loginUserDto: loginWithGoogleUserDto,
+    @Body() loginUserDto: LoginWithGoogleUserDto,
     @Res() res: Response,
   ): APIResponse {
     try {
@@ -209,6 +225,10 @@ export class AuthController {
 
   @Public()
   @Post('verify-otp')
+  @ApiOperation({ summary: 'Verify OTP for login or registration' })
+  @ApiBody({ type: userEmailDetailsDto })
+  @ApiResponse({ status: 200, description: 'OTP verified' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired OTP' })
   async verifyOtp(
     @Body() loginUserDto: userEmailDetailsDto,
     @Res() res: Response,
@@ -266,6 +286,9 @@ export class AuthController {
 
   @Public()
   @Post('forgot-password')
+  @ApiOperation({ summary: 'Send forgot password email' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password reset email sent' })
   async forgotPassword(
     @Body() forgotPasswordData: ForgotPasswordDto,
     @Res() res: Response,

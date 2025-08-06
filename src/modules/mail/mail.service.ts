@@ -1,6 +1,6 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable } from '@nestjs/common';
-import { ForgotPasswordMailSchema, SendOTP } from 'src/type/user.entity';
+import { ForgotPasswordMailSchema, SendOTP } from 'src/common/types/user.entity';
 
 @Injectable()
 export class MailService {

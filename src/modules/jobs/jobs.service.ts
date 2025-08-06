@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { CreateJobListingDto } from './dto/create-job.dto';
 import { UpdateJobListingDto } from './dto/update-job.dto';
 import { Model, Types } from 'mongoose';
-import { JobApplying, JobPosting } from './entities/job.entity';
+import { JobApplying, JobPosting } from '../../schemas/job.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { JobStatus } from './constants';
+import { JobStatus } from 'src/constants';
 import * as moment from 'moment';
 
 @Injectable()

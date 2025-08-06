@@ -1,11 +1,18 @@
 import { Body, Controller, Post, Res, Get } from '@nestjs/common';
 import { Response } from 'express';
 import { ContactUsService } from './contact-us.service';
-import { HttpStatusCodesService } from 'src/http_status_codes/http_status_codes.service';
+import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 import { Public } from 'src/plugin/public';
-import { ErrorResponse, SuccessResponse } from 'src/utils/response';
-import { ContactUsDto } from 'src/dto';
+import { ErrorResponse, SuccessResponse } from 'src/common/utils/response';
+import { ContactUsDto } from './dto/contact-us.dto';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+} from '@nestjs/swagger';
 
+@ApiTags('Contact Us') // Group in Swagger UI
 @Controller('contact-us')
 export class ContactUsController {
   constructor(
@@ -15,6 +22,11 @@ export class ContactUsController {
 
   @Public()
   @Post()
+  @ApiOperation({ summary: 'Submit a contact us form message' })
+  @ApiBody({ type: ContactUsDto })
+  @ApiResponse({ status: 201, description: 'Message submitted successfully' })
+  @ApiResponse({ status: 409, description: 'Already Submitted' })
+  @ApiResponse({ status: 500, description: 'Submission Failed' })
   async submit(
     @Body() body: ContactUsDto,
     @Res() res: Response,
@@ -50,6 +62,9 @@ export class ContactUsController {
   }
 
   @Get('list')
+  @ApiOperation({ summary: 'Get all submitted messages' })
+  @ApiResponse({ status: 200, description: 'All messages fetched' })
+  @ApiResponse({ status: 500, description: 'Failed to fetch messages' })
   async getAll(@Res() res: Response): Promise<void> {
     try {
       const entries = await this.contactUsService.findAll();
