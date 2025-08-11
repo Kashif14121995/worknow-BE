@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { JobsController } from './jobs.controller';
-// import { APP_GUARD } from '@nestjs/core';
-// import { AuthGuard } from 'src/auth/auth.guard';
 import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import {

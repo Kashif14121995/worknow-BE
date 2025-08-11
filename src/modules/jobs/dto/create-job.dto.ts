@@ -67,6 +67,11 @@ export class CreateJobListingDto {
   @Min(0)
   amount: number;
 
+  @ApiProperty({ example: 10, minimum: 1 })
+  @IsNumber()
+  @Min(1)
+  numberOfPositions: number;
+
   @ApiProperty({
     enum: PaymentType,
     example: PaymentType.hourly,

@@ -58,6 +58,9 @@ export class JobPosting {
   @Prop()
   education: string;
 
+  @Prop()
+  numberOfPositions: number;
+
   @Prop({ type: [String], default: [] })
   requiredSkills: string[];
 

@@ -213,7 +213,7 @@ export class JobsController {
     return this.jobsService.remove(id);
   }
 
-  @Get('/user/listing/:status')
+  @Get('user/listing/:status')
   @ApiOperation({ summary: 'Get jobs for user filtered by status' })
   @ApiParam({
     name: 'status',
