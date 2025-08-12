@@ -5,11 +5,16 @@ import {
   PaymentType,
   JobApplicationAppliedStatus,
 } from 'src/constants';
+import { Counter, CounterDocument } from './counter.schema';
 
 export type JobPostingDocument = HydratedDocument<JobPosting>;
+export type JobApplyingDocument = HydratedDocument<JobApplying>;
 
 @Schema({ timestamps: true })
 export class JobPosting {
+  @Prop()
+  jobId: string;
+
   @Prop()
   jobTitle: string;
 
@@ -59,7 +64,7 @@ export class JobPosting {
   education: string;
 
   @Prop()
-  numberOfPositions: number;
+  positions: number;
 
   @Prop({ type: [String], default: [] })
   requiredSkills: string[];
@@ -75,6 +80,9 @@ export const JobPostingSchema = SchemaFactory.createForClass(JobPosting);
 
 @Schema({ timestamps: true })
 export class JobApplying {
+  @Prop()
+  appId: string;
+
   @Prop()
   createdAt?: Date;
 
@@ -97,3 +105,41 @@ export class JobApplying {
 const JobApplyingSchema = SchemaFactory.createForClass(JobApplying);
 
 export { JobApplyingSchema };
+
+// ✅ Add the pre-save hook here (before exporting schema)
+JobPostingSchema.pre<JobPostingDocument>('save', async function (next) {
+  if (!this.jobId) {
+    // this.$model returns the model already registered with the connection
+    const CounterModel = this.$model(
+      'Counter',
+    ) as mongoose.Model<CounterDocument>;
+
+    const counter = await CounterModel.findOneAndUpdate(
+      { id: 'jobId' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true },
+    ).exec();
+
+    this.jobId = `JOB_${String(counter.seq).padStart(4, '0')}`;
+  }
+  next();
+});
+
+// ✅ Add the pre-save hook here (before exporting schema)
+JobApplyingSchema.pre<JobApplyingDocument>('save', async function (next) {
+  if (!this.appId) {
+    // this.$model returns the model already registered with the connection
+    const CounterModel = this.$model(
+      'Counter',
+    ) as mongoose.Model<CounterDocument>;
+
+    const counter = await CounterModel.findOneAndUpdate(
+      { id: 'appId' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true },
+    ).exec();
+
+    this.appId = `APP_${String(counter.seq).padStart(4, '0')}`;
+  }
+  next();
+});

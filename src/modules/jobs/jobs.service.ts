@@ -17,6 +17,10 @@ export class JobsService {
     return await this.jobPostingModel.create({
       ...CreateJobListingDto,
       postedBy: userId,
+      status:
+        CreateJobListingDto.saveStatus === 'draft'
+          ? JobStatus.draft
+          : JobStatus.active, // Default status when creating a job
     });
   }
 
@@ -130,7 +134,6 @@ export class JobsService {
   }
 
   async findOne(id: string) {
-    console.log('Finding job with ID:', id);
     return await this.jobPostingModel.findById(id);
   }
 
@@ -153,7 +156,6 @@ export class JobsService {
   }
 
   async getAllJobsWithApplicants(userId: string, page: number, limit: number) {
-    console.log('Fetching jobs with applicants for user is:', userId);
     const skip = (page - 1) * limit;
     // Import Types from mongoose at the top: import { Types } from 'mongoose';
     const results = await this.jobPostingModel.aggregate([

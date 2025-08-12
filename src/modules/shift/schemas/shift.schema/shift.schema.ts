@@ -1,10 +1,14 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import mongoose, { Document, HydratedDocument, Types } from 'mongoose';
+import { CounterDocument } from 'src/schemas/counter.schema';
 
-export type ShiftDocument = Shift & Document;
+export type ShiftDocument = HydratedDocument<Shift>;
 
 @Schema({ timestamps: true })
 export class Shift {
+  @Prop()
+  shiftId: string;
+
   @Prop({ type: Types.ObjectId, ref: 'JobPosting', required: true })
   jobId: Types.ObjectId;
 
@@ -31,3 +35,22 @@ export class Shift {
 }
 
 export const ShiftSchema = SchemaFactory.createForClass(Shift);
+
+// ✅ Add the pre-save hook here (before exporting schema)
+ShiftSchema.pre<ShiftDocument>('save', async function (next) {
+  if (!this.shiftId) {
+    // this.$model returns the model already registered with the connection
+    const CounterModel = this.$model(
+      'Counter',
+    ) as mongoose.Model<CounterDocument>;
+
+    const counter = await CounterModel.findOneAndUpdate(
+      { id: 'shiftId' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true },
+    ).exec();
+
+    this.shiftId = `SHIFT_${String(counter.seq).padStart(4, '0')}`;
+  }
+  next();
+});

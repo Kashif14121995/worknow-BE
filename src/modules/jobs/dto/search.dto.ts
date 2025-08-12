@@ -7,7 +7,7 @@ export class SearchDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['active', 'inactive', 'pending'], {
+  @IsIn(['active', 'inactive', 'pending', ''], {
     message: 'status must be one of: active, inactive, pending',
   })
   status?: string;

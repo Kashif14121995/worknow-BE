@@ -21,6 +21,7 @@ export enum JobStatus {
   closed = 'closed',
   ongoing = 'ongoing',
   cancelled = 'cancelled',
+  draft = 'draft',
 }
 
 export enum PaymentType {

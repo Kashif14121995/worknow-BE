@@ -340,9 +340,7 @@ export class JobsController {
     @Query() pagination: PaginationDto,
   ): APIResponse {
     try {
-      console.log('Fetching job applicants with pagination:', pagination);
       const userId = request?.user?.id;
-      console.log('User ID:', userId);
       const { page, limit } = pagination;
       const data = await this.jobsService.getAllJobsWithApplicants(
         userId,
@@ -381,10 +379,8 @@ export class JobsController {
     @Query() search: SearchDto,
   ): APIResponse {
     try {
-      console.log('Fetching job applications with pagination:', pagination);
       const userId = request?.user?.id;
       const role = request?.user?.role;
-      console.log('User ID:', userId);
       const { page, limit } = pagination;
       const { searchText, status } = search;
       const data = await this.jobsService.getApplicationsReceived(

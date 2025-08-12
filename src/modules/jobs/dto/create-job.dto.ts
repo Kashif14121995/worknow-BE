@@ -70,7 +70,7 @@ export class CreateJobListingDto {
   @ApiProperty({ example: 10, minimum: 1 })
   @IsNumber()
   @Min(1)
-  numberOfPositions: number;
+  positions: number;
 
   @ApiProperty({
     enum: PaymentType,
@@ -115,4 +115,6 @@ export class CreateJobListingDto {
   @IsArray()
   @IsString({ each: true })
   requiredSkills: string[];
+
+  saveStatus?: 'draft' | 'publish' = 'publish'; // Default to active if not specified
 }
