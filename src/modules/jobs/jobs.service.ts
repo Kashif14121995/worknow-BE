@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateJobListingDto } from './dto/create-job.dto';
-import { UpdateJobListingDto } from './dto/update-job.dto';
+import { UpdateJobDto } from './dto/update-job.dto';
 import { Model, Types } from 'mongoose';
 import { JobApplying, JobPosting } from '../../schemas/job.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -78,7 +82,6 @@ export class JobsService {
 
   async findAll(
     userId: string,
-    role: string,
     page: number = 1,
     limit: number = 10,
     searchText: string = '',
@@ -118,6 +121,7 @@ export class JobsService {
               createdAt: 1,
               description: 1,
               applicantsCount: 1,
+              jobId: 1,
             },
           },
         ])
@@ -135,13 +139,6 @@ export class JobsService {
 
   async findOne(id: string) {
     return await this.jobPostingModel.findById(id);
-  }
-
-  async update(id: string, UpdateJobListingDto: UpdateJobListingDto) {
-    return await this.jobPostingModel.updateOne(
-      { _id: id },
-      { $set: { status: UpdateJobListingDto.status } }, // Replace `newStatus` with the actual status value
-    );
   }
 
   async remove(id: string) {
@@ -264,7 +261,12 @@ export class JobsService {
     const statusFilter =
       status && status.trim() !== '' ? { 'applications.status': status } : {};
 
-    const matchStages = [{ $match: { postedBy: new Types.ObjectId(userId) } }];
+    const matchStages = [];
+    if (Types.ObjectId.isValid(userId)) {
+      matchStages.push({ $match: { postedBy: new Types.ObjectId(userId) } });
+    } else {
+      throw new BadRequestException(`Invalid userId: ${userId}`);
+    }
 
     const lookupStages = [
       {
@@ -363,5 +365,50 @@ export class JobsService {
       limit: limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async updateStatus(jobId: string, status: string): Promise<JobPosting> {
+    const job = await this.jobPostingModel.findById(jobId);
+
+    if (!job) {
+      throw new NotFoundException(`Job not found`);
+    }
+
+    if (job.status === JobStatus.closed && status === JobStatus.closed) {
+      throw new BadRequestException(`Job is already closed`);
+    }
+
+    job.status = status;
+    await job.save();
+
+    return job;
+  }
+
+  async update(jobId: string, payload: UpdateJobDto): Promise<JobPosting> {
+    const job = await this.jobPostingModel.findById(jobId);
+
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    // 🚫 Rule 1: Prevent update if job is closed
+    if (job.status === 'closed') {
+      throw new BadRequestException('This job is closed and cannot be updated');
+    }
+
+    // 🚫 Rule 2: Prevent update if applicants exist
+    const applicantsCount = await this.jobApplyingModel.countDocuments({
+      appliedFor: jobId,
+    });
+
+    if (applicantsCount > 0) {
+      throw new BadRequestException(
+        'Applicants already applied, job cannot be updated',
+      );
+    }
+
+    return this.jobPostingModel.findByIdAndUpdate(jobId, payload, {
+      new: true,
+    });
   }
 }

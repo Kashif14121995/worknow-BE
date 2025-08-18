@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { CreateJobListingDto } from './dto/create-job.dto';
-import { UpdateJobListingDto } from './dto/update-job.dto';
+import { UpdateJobDto } from './dto/update-job.dto';
 import { AvailableJobs, JobStatus, PaymentType } from 'src/constants';
 import { APIResponse, Request } from 'src/common/types/express';
 import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
@@ -36,6 +36,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { UpdateJobStatusDto } from './dto/update-job-status.dto';
 
 @Controller('jobs')
 @ApiTags('Jobs')
@@ -50,7 +51,10 @@ export class JobsController {
     private readonly http: HttpStatusCodesService,
   ) {}
 
-  @Post('listing')
+  // ----------------------------
+  // Create
+  // ----------------------------
+  @Post()
   @ApiOperation({ summary: 'Create a new job listing' })
   @ApiBody({ type: CreateJobListingDto })
   @ApiResponse({ status: 201, description: 'Job created successfully' })
@@ -84,7 +88,10 @@ export class JobsController {
     }
   }
 
-  @Get('listing')
+  // ----------------------------
+  // List all jobs
+  // ----------------------------
+  @Get()
   @ApiOperation({ summary: 'Get all job listings (paginated)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -105,7 +112,6 @@ export class JobsController {
     try {
       const data = await this.jobsService.findAll(
         userId,
-        role,
         pageNumber,
         pageLimit,
         searchText,
@@ -131,7 +137,126 @@ export class JobsController {
     }
   }
 
-  @Get('/listing/shifts')
+  @Get('/job-applications')
+  @ApiOperation({ summary: 'Get all Job Applications of a Lister' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Applicants fetched successfully' })
+  async findJobApplications(
+    @Req() request: Request,
+    @Res() res: Response,
+    @Query() pagination: PaginationDto,
+    @Query() search: SearchDto,
+  ): APIResponse {
+    try {
+      const userId = request?.user?.id;
+      const role = request?.user?.role;
+      const { page, limit } = pagination;
+      const { searchText, status } = search;
+      const data = await this.jobsService.getApplicationsReceived(
+        userId,
+        role,
+        page,
+        limit,
+        searchText,
+        status,
+      );
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      console.error('Error fetching job applicantions:', error);
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
+              '{{email}}',
+              request.user?.email ?? 'unknown',
+            ),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get('/job-with-applicants')
+  @ApiOperation({ summary: 'Get all applicants (paginated)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Applicants fetched successfully' })
+  async findAllJobWithApplicants(
+    @Req() request: Request,
+    @Res() res: Response,
+    @Query() pagination: PaginationDto,
+  ): APIResponse {
+    try {
+      const userId = request?.user?.id;
+      const { page, limit } = pagination;
+      const data = await this.jobsService.getAllJobsWithApplicants(
+        userId,
+        page,
+        limit,
+      );
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      console.error('Error fetching job applicants:', error);
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
+              '{{email}}',
+              request.user?.email ?? 'unknown',
+            ),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get('/applicants')
+  @ApiOperation({ summary: 'Get all applicants (paginated)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Applicants fetched successfully' })
+  async findAllApplicants(
+    @Req() request: Request,
+    @Res() res: Response,
+    @Query() pagination: PaginationDto,
+  ): APIResponse {
+    try {
+      const userId = request?.user?.id;
+      const { page, limit } = pagination;
+      const data = await this.jobsService.getAllJobApplications(
+        userId,
+        page,
+        limit,
+      );
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
+              '{{email}}',
+              request.user?.email ?? 'unknown',
+            ),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get('/shifts')
   @ApiOperation({
     summary: 'Get job listing shifts for the authenticated user',
   })
@@ -163,28 +288,55 @@ export class JobsController {
     }
   }
 
-  @Get('listing/:id')
-  @ApiOperation({ summary: 'Get job listing by ID' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ status: 200, description: 'Job fetched successfully' })
-  findOne(@Param('id') id: string) {
-    return this.jobsService.findOne(id);
+  @Post('updateStatus/:status')
+  @ApiOperation({ summary: 'Update job status by ID' })
+  @ApiParam({ name: 'status', type: String, description: 'New job status' })
+  @ApiBody({ type: UpdateJobStatusDto })
+  @ApiResponse({ status: 200, description: 'Job status updated successfully' })
+  async updateStatus(
+    @Param('status') status: string,
+    @Res() res: Response,
+    @Body() body: UpdateJobStatusDto,
+  ) {
+    try {
+      const data = await this.jobsService.updateStatus(body.jobId, status);
+      if (data.status === JobStatus.closed) {
+        return res
+          .status(this.http.STATUS_OK)
+          .json(
+            new SuccessResponse(
+              data,
+              UPDATE_SUCCESS.replace('{{entity}}', 'status of job'),
+            ),
+          );
+      }
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            UPDATE_ERROR.replace('{{entity}}', 'status of job'),
+            error.message,
+          ),
+        );
+    }
   }
 
-  @Patch('listing/:id')
+  @Patch(':id')
   @ApiOperation({ summary: 'Update job listing by ID' })
   @ApiParam({ name: 'id', type: String })
-  @ApiBody({ type: UpdateJobListingDto })
+  @ApiBody({ type: UpdateJobDto })
   @ApiResponse({ status: 200, description: 'Job updated successfully' })
   async update(
     @Param('id') id: string,
     @Res() res: Response,
-    @Body() UpdateJobListingDto: UpdateJobListingDto,
+    @Body() UpdateJobDto: UpdateJobDto,
   ) {
     try {
-      const data = await this.jobsService.update(id, UpdateJobListingDto);
+      const data = await this.jobsService.update(id, UpdateJobDto);
       return res
-        .status(this.http.STATUS_SUCCESSFULLY_CREATION)
+        .status(this.http.STATUS_OK)
         .json(
           new SuccessResponse(
             data,
@@ -204,7 +356,7 @@ export class JobsController {
     }
   }
 
-  @Delete('listing/:id')
+  @Delete('/:id')
   @ApiOperation({ summary: 'Delete a job by ID' })
   @ApiParam({ name: 'id', type: String, description: 'Job ID' })
   @ApiResponse({ status: 200, description: 'Job deleted successfully' })
@@ -213,7 +365,7 @@ export class JobsController {
     return this.jobsService.remove(id);
   }
 
-  @Get('user/listing/:status')
+  @Get('/byStatus/:status')
   @ApiOperation({ summary: 'Get jobs for user filtered by status' })
   @ApiParam({
     name: 'status',
@@ -292,195 +444,11 @@ export class JobsController {
     }
   }
 
-  @Get('/applicants')
-  @ApiOperation({ summary: 'Get all applicants (paginated)' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Applicants fetched successfully' })
-  async findAllApplicants(
-    @Req() request: Request,
-    @Res() res: Response,
-    @Query() pagination: PaginationDto,
-  ): APIResponse {
-    try {
-      const userId = request?.user?.id;
-      const { page, limit } = pagination;
-      const data = await this.jobsService.getAllJobApplications(
-        userId,
-        page,
-        limit,
-      );
-      return res
-        .status(this.http.STATUS_OK)
-        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
-    } catch (error) {
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
-              '{{email}}',
-              request.user?.email ?? 'unknown',
-            ),
-            error.message,
-          ),
-        );
-    }
-  }
-
-  @Get('/job-with-applicants')
-  @ApiOperation({ summary: 'Get all applicants (paginated)' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Applicants fetched successfully' })
-  async findAllJobWithApplicants(
-    @Req() request: Request,
-    @Res() res: Response,
-    @Query() pagination: PaginationDto,
-  ): APIResponse {
-    try {
-      const userId = request?.user?.id;
-      const { page, limit } = pagination;
-      const data = await this.jobsService.getAllJobsWithApplicants(
-        userId,
-        page,
-        limit,
-      );
-      return res
-        .status(this.http.STATUS_OK)
-        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
-    } catch (error) {
-      console.error('Error fetching job applicants:', error);
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
-              '{{email}}',
-              request.user?.email ?? 'unknown',
-            ),
-            error.message,
-          ),
-        );
-    }
-  }
-
-  @Get('/job-applications')
-  @ApiOperation({ summary: 'Get all Job Applications of a Lister' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Applicants fetched successfully' })
-  async findJobApplications(
-    @Req() request: Request,
-    @Res() res: Response,
-    @Query() pagination: PaginationDto,
-    @Query() search: SearchDto,
-  ): APIResponse {
-    try {
-      const userId = request?.user?.id;
-      const role = request?.user?.role;
-      const { page, limit } = pagination;
-      const { searchText, status } = search;
-      const data = await this.jobsService.getApplicationsReceived(
-        userId,
-        role,
-        page,
-        limit,
-        searchText,
-        status,
-      );
-      return res
-        .status(this.http.STATUS_OK)
-        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
-    } catch (error) {
-      console.error('Error fetching job applicantions:', error);
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            this.FIND_USER_JOB_APPLICANTS_ERROR.replace(
-              '{{email}}',
-              request.user?.email ?? 'unknown',
-            ),
-            error.message,
-          ),
-        );
-    }
-  }
-
-  @Get('/job-types')
-  @ApiOperation({ summary: 'List available job types' })
-  @ApiResponse({ status: 200, description: 'Job types fetched successfully' })
-  async listJobTypes(
-    @Req() request: Request,
-    @Res() res: Response,
-  ): APIResponse {
-    try {
-      const jobTypes = Object.values(AvailableJobs).map((job) => {
-        const label = job
-          .replace(/_/g, ' ')
-          .toLowerCase()
-          .replace(/\b\w/g, (c) => c.toUpperCase());
-        return {
-          label,
-          value: job,
-        };
-      });
-      return res
-        .status(this.http.STATUS_OK)
-        .json(new SuccessResponse(jobTypes, DATA_FETCHED_SUCCESSFULLY));
-    } catch (error) {
-      console.error('Error fetching job-types:', error);
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            error.message,
-            error.message,
-          ),
-        );
-    }
-  }
-
-  @Get('/payment-types')
-  @ApiOperation({ summary: 'List available payment types' })
-  @ApiResponse({
-    status: 200,
-    description: 'Payment types fetched successfully',
-  })
-  async listPaymentTypes(
-    @Req() request: Request,
-    @Res() res: Response,
-  ): APIResponse {
-    try {
-      const jobTypes = Object.values(PaymentType).map((job) => {
-        const label = job
-          .replace(/_/g, ' ')
-          .toLowerCase()
-          .replace(/\b\w/g, (c) => c.toUpperCase());
-        return {
-          label,
-          value: job,
-        };
-      });
-      return res
-        .status(this.http.STATUS_OK)
-        .json(new SuccessResponse(jobTypes, DATA_FETCHED_SUCCESSFULLY));
-    } catch (error) {
-      console.error('Error fetching job-types:', error);
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            error.message,
-            error.message,
-          ),
-        );
-    }
+  @Get('/:id')
+  @ApiOperation({ summary: 'Get job listing by ID' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Job fetched successfully' })
+  findOne(@Param('id') id: string) {
+    return this.jobsService.findOne(id);
   }
 }

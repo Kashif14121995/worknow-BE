@@ -1,9 +1,5 @@
-import { IsEnum } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger'; // Swagger decorator
-import { JobStatus } from 'src/constants';
+import { CreateJobListingDto } from './create-job.dto';
 
-export class UpdateJobListingDto {
-  @ApiProperty({ enum: JobStatus, description: 'Job status' })
-  @IsEnum(JobStatus, { message: 'Invalid job status' })
-  status: JobStatus;
+export class UpdateJobDto extends CreateJobListingDto {
+  // 🚫 no "status" here
 }
