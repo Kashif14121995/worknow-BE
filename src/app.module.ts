@@ -17,6 +17,8 @@ import { AwsModule } from './modules/aws/aws.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ContactUsModule } from './modules/contact-us/contact-us.module';
 import { ShiftModule } from './modules/shift/shift.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+
 @Module({
   imports: [
     AuthModule,
@@ -50,6 +52,7 @@ import { ShiftModule } from './modules/shift/shift.module';
     JobsModule,
     ContactUsModule,
     ShiftModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, BcryptService, HttpStatusCodesService],
