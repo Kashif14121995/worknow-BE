@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
-import { JobApplying, JobApplyingSchema, JobPosting, JobPostingSchema } from 'src/schemas/job.schema';
-import { Shift, ShiftSchema } from '../shift/schemas/shift.schema/shift.schema';
+import { JobApplying, JobApplyingSchema, JobPosting, JobPostingSchema, Shift, ShiftSchema } from 'src/schemas';
 import { MongooseModule } from '@nestjs/mongoose';
 import { HttpStatusCodesService } from '../http_status_codes/http_status_codes.service';
 

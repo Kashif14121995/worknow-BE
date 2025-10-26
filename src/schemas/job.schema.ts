@@ -5,7 +5,7 @@ import {
   PaymentType,
   JobApplicationAppliedStatus,
 } from 'src/constants';
-import { Counter, CounterDocument } from './counter.schema';
+import { Counter, CounterDocument } from 'src/schemas';
 
 export type JobPostingDocument = HydratedDocument<JobPosting>;
 export type JobApplyingDocument = HydratedDocument<JobApplying>;
@@ -98,8 +98,11 @@ export class JobApplying {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
   appliedBy: mongoose.Types.ObjectId;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'jobpostings' })
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'JobPosting' })
   appliedFor: mongoose.Types.ObjectId;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Shift', required: false })
+  shiftId?: mongoose.Types.ObjectId; // link to shift (if assigned)
 }
 
 const JobApplyingSchema = SchemaFactory.createForClass(JobApplying);

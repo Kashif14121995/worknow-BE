@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Shift } from '../shift/schemas/shift.schema/shift.schema';
-import { JobApplying, JobPosting } from 'src/schemas/job.schema';
+import { Shift, JobApplying, JobPosting } from 'src/schemas';
 import { JobStatus } from 'src/constants';
 import { ShiftStatus } from '../shift/dto/update-shift.dto/update-shift.dto';
 
@@ -30,48 +29,29 @@ export class DashboardService {
             totalApplications,
             activeShifts,
             inactiveShifts,
-            upcomingShifts,
         ] = await Promise.all([
             // Active Jobs
             this.jobModel.countDocuments({
-            postedBy: providerObjectId,
-            status: JobStatus.active,
+                postedBy: providerObjectId,
+                status: JobStatus.active,
             }),
 
             // Applications for jobs by this provider
             this.applicationModel.countDocuments({
-            appliedFor: { $in: jobIds },
+                appliedFor: { $in: jobIds },
             }),
 
             // Count open shifts (using createdBy instead of jobId)
             this.shiftModel.countDocuments({
-            createdBy: providerObjectId,
-            status: ShiftStatus.OPEN,
+                createdBy: providerObjectId,
+                status: ShiftStatus.OPEN,
             }),
 
             // Count filled shifts (using createdBy)
             this.shiftModel.countDocuments({
-            createdBy: providerObjectId,
-            status: ShiftStatus.FILLED,
-            }),
-
-            // Fetch upcoming shifts for this provider (using createdBy)
-            this.shiftModel
-            .find({
                 createdBy: providerObjectId,
-                startDate: { $lte: fifteenDaysFromNow },
-            })
-            .sort({ startDate: 1 })
-            .populate({
-                path: 'jobId',
-                select: '_id',
-            })
-            .populate({
-                path: 'assignees',
-                select: 'first_name last_name',
-            })
-            .select('startDate endDate startTime endTime shiftId')
-            .lean()
+                status: ShiftStatus.FILLED,
+            }),
         ]);
 
         return {
@@ -81,7 +61,59 @@ export class DashboardService {
                 activeShifts,
                 inactiveShifts,
             },
-            upcomingShifts,
+        };
+    }
+    async getUpcomingShifts(providerId: string, searchText?: string, page = 1, limit = 10) {
+        const today = new Date();
+        const fifteenDaysFromNow = new Date();
+        fifteenDaysFromNow.setDate(today.getDate() + 15);
+
+        const providerObjectId = new Types.ObjectId(providerId);
+
+        const filter: any = {
+            createdBy: providerObjectId,
+            startDate: { $lte: fifteenDaysFromNow },
+        };
+
+        const query = this.shiftModel
+            .find(filter)
+            .sort({ startDate: 1 })
+            .populate({
+                path: 'jobId',
+                select: '_id title',
+            })
+            .populate({
+                path: 'assignees',
+                match: searchText
+                    ? {
+                        $or: [
+                            { first_name: { $regex: searchText, $options: 'i' } },
+                            { last_name: { $regex: searchText, $options: 'i' } },
+                        ],
+                    }
+                    : {},
+                select: 'first_name last_name',
+            })
+            .select('startDate endDate startTime endTime shiftId status');
+
+        const skip = (page - 1) * limit;
+        const [totalCount, results] = await Promise.all([
+            this.shiftModel.countDocuments(filter),
+            query.skip(skip).limit(limit).lean(),
+        ]);
+
+        const filteredResults = searchText
+            ? results.filter((shift) => shift.assignees?.length > 0)
+            : results;
+
+        return {
+            total: totalCount,
+            page,
+            limit,
+            count: filteredResults.length,
+            upcomingShifts: filteredResults,
         };
     }
 }
+
+

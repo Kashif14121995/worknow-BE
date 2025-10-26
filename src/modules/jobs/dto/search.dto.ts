@@ -1,4 +1,5 @@
-import { IsOptional, IsString, IsIn } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsEnum } from 'class-validator';
+import { JobStatus } from 'src/constants';
 
 export class SearchDto {
   @IsOptional()
@@ -6,9 +7,8 @@ export class SearchDto {
   searchText?: string = '';
 
   @IsOptional()
-  @IsString()
-  @IsIn(['active', 'inactive', 'pending', ''], {
-    message: 'status must be one of: active, inactive, pending',
+  @IsEnum(JobStatus, {
+    message: `status must be one of: ${Object.values(JobStatus).join(', ')}`,
   })
-  status?: string;
+  status?: JobStatus;
 }

@@ -15,6 +15,14 @@ export class CreateShiftDto {
   @IsNotEmpty()
   jobId: string;
 
+  @IsMongoId()
+  @IsNotEmpty()
+  appId: string;
+
+  @IsMongoId()
+  @IsNotEmpty()
+  assigneeId: string;
+
   @ApiProperty({
     description: 'Shift start date (format: yyyy-mm-dd)',
     example: '2025-08-15',

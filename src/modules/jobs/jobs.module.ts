@@ -4,14 +4,14 @@ import { JobsService } from './jobs.service';
 import { JobsController } from './jobs.controller';
 import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import {
-  JobApplying,
-  JobApplyingSchema,
-  JobPosting,
-  JobPostingSchema,
-} from '../../schemas/job.schema';
-import { Counter, CounterSchema } from 'src/schemas/counter.schema';
 import { JwtService } from '@nestjs/jwt';
+import {
+  User, UserSchema,
+  Shift, ShiftSchema,
+  Counter, CounterSchema,
+  JobApplying, JobApplyingSchema,
+  JobPosting, JobPostingSchema,
+} from 'src/schemas';
 
 @Module({
   imports: [
@@ -19,10 +19,12 @@ import { JwtService } from '@nestjs/jwt';
       { name: JobPosting.name, schema: JobPostingSchema },
       { name: JobApplying.name, schema: JobApplyingSchema },
       { name: Counter.name, schema: CounterSchema },
+      { name: Shift.name, schema: ShiftSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [JobsController],
   providers: [JobsService, JwtService, HttpStatusCodesService],
   exports: [JobsService, MongooseModule],
 })
-export class JobsModule {}
+export class JobsModule { }

@@ -9,11 +9,12 @@ import {
   Req,
   Res,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { CreateJobListingDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
-import { AvailableJobs, JobStatus, PaymentType } from 'src/constants';
+import { AvailableJobs, JobStatus, PaymentType, UserRole } from 'src/constants';
 import { APIResponse, Request } from 'src/common/types/express';
 import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 import { ErrorResponse, SuccessResponse } from 'src/common/utils/response';
@@ -49,7 +50,7 @@ export class JobsController {
   constructor(
     private readonly jobsService: JobsService,
     private readonly http: HttpStatusCodesService,
-  ) {}
+  ) { }
 
   // ----------------------------
   // Create
@@ -365,6 +366,82 @@ export class JobsController {
     return this.jobsService.remove(id);
   }
 
+  @Get('/seekers-applied-and-assigned')
+  @ApiOperation({
+    summary: 'Get seekers who applied to jobs and are assigned to shifts',
+    description: 'Returns a list of seeker-job combinations where seekers have applied to jobs created by the authenticated lister and are assigned to shifts. Each seeker-job combination is a separate entry.'
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number for pagination' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of items per page' })
+  @ApiQuery({ name: 'seekerName', required: false, type: String, description: 'Filter by seeker name (partial match)' })
+  @ApiResponse({ status: 200, description: 'Seekers fetched successfully' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async getSeekersAppliedAndAssignedToShifts(
+    @Req() request: Request,
+    @Res() res: Response,
+    @Query() pagination: PaginationDto,
+  ): APIResponse {
+    try {
+      const userId = request?.user?.id;
+      const { page, limit } = pagination;
+      const seekerName = request.query.seekerName ? String(request.query.seekerName) : undefined;
+
+      const data = await this.jobsService.getSeekersAppliedAndAssignedToShifts(
+        userId,
+        page,
+        limit,
+        seekerName,
+      );
+
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, DATA_FETCHED_SUCCESSFULLY));
+    } catch (error) {
+      console.error('Error fetching seekers applied and assigned to shifts:', error);
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            'Error fetching seekers who applied to jobs and are assigned to shifts',
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Get("/active-job-listing")
+  @ApiOperation({ summary: 'Get all active job listings' })
+  @ApiResponse({ status: 200, description: 'Active jobs fetched successfully' })
+  async getActiveJobListings(@Req() request: Request, @Res() res: Response) {
+    try {
+      const userId = request.user.id;
+      const userRole = request.user.role;
+      if (userRole !== UserRole.job_provider) {
+        throw new ForbiddenException('UnAuthorized access to active job listings');
+      }
+      const data = await this.jobsService.getUnassignedApplications(userId);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(
+          new SuccessResponse(
+            data,
+            DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'active jobs'),
+          ),
+        );
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            `Error fetching active job listings`,
+            error.message,
+          ),
+        );
+    }
+  }
+
   @Get('/byStatus/:status')
   @ApiOperation({ summary: 'Get jobs for user filtered by status' })
   @ApiParam({
@@ -451,4 +528,5 @@ export class JobsController {
   findOne(@Param('id') id: string) {
     return this.jobsService.findOne(id);
   }
+
 }

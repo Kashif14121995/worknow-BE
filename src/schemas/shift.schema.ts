@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document, HydratedDocument, Types } from 'mongoose';
-import { CounterDocument } from 'src/schemas/counter.schema';
+import { CounterDocument } from 'src/schemas';
 
 export type ShiftDocument = HydratedDocument<Shift>;
 
@@ -11,6 +11,9 @@ export class Shift {
 
   @Prop({ type: Types.ObjectId, ref: 'JobPosting', required: true })
   jobId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: "JobApplying", required: false })
+  appId: Types.ObjectId;
 
   @Prop({ required: true })
   startDate: Date;

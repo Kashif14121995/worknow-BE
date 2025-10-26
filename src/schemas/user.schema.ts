@@ -29,11 +29,28 @@ export class User {
   @Prop({ enum: [UserRole.job_provider, UserRole.job_seeker] })
   role: string;
 
+  // Optional array of skills
+  @Prop({ type: [String], required: false })
+  skills?: string[];
+
+  // Optional education
+  @Prop({ type: String, required: false })
+  education?: string;
+
+  // Optional experience in years
+  @Prop({ type: Number, required: false })
+  experience?: number;
+
+  @Prop({ type: String, required: false })
+  location?: string
+
   @Prop()
   createdAt?: Date;
 
   @Prop()
   updatedAt?: Date;
+
+
 
   @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'JobPosting' }] })
   jobPostings: mongoose.Types.ObjectId[];
