@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -18,8 +19,13 @@ export class SubscriptionService {
   constructor(
     @InjectModel(Subscription.name) private subscriptionModel: Model<SubscriptionDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private readonly configService: ConfigService,
   ) {
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    const stripeKey = this.configService.get<string>('STRIPE_API_KEY');
+    if (!stripeKey) {
+      throw new Error('STRIPE_API_KEY is not configured in environment variables');
+    }
+    this.stripe = new Stripe(stripeKey, {
       apiVersion: '2024-12-18.acacia',
     });
   }
