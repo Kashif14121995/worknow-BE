@@ -9,6 +9,7 @@ export const UPDATE_ERROR = `Error updated  {{entity}}`;
 export enum UserRole {
   job_seeker = 'job_seeker',
   job_provider = 'job_provider',
+  admin = 'admin',
 }
 
 export enum AvailableJobs {
@@ -38,3 +39,9 @@ export enum JobApplicationAppliedStatus {
   hired,
   completed,
 }
+
+// Re-export verification enums for easy access
+export { VerificationDocumentType, VerificationStatus } from 'src/schemas/user-verification.schema';
+
+// Re-export blocking enums
+export { BlockReason } from 'src/schemas/blocked-user.schema';

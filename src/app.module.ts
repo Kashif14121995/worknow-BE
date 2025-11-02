@@ -21,9 +21,28 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MessageModule } from './modules/message/message.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { RatingModule } from './modules/rating/rating.module';
+import { InvoiceModule } from './modules/invoice/invoice.module';
+import { TasksModule } from './modules/tasks/tasks.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { UserModule } from './modules/user/user.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { VerificationModule } from './modules/verification/verification.module';
+import { ResumeModule } from './modules/resume/resume.module';
+import { BlockingModule } from './modules/blocking/blocking.module';
+import { MatchingModule } from './modules/matching/matching.module';
+import { ShiftAnalyticsModule } from './modules/shift-analytics/shift-analytics.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { RolesGuard } from './common/guards/roles.guard';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{
+      ttl: 60000, // 1 minute
+      limit: 100, // 100 requests per minute
+    }]),
     AuthModule,
     ConfigModule.forRoot({
       isGlobal: true,
@@ -59,9 +78,31 @@ import { RatingModule } from './modules/rating/rating.module';
     MessageModule,
     PaymentModule,
     RatingModule,
+    InvoiceModule,
+    TasksModule,
+    NotificationModule,
+    UserModule,
+    AdminModule,
+    VerificationModule,
+    ResumeModule,
+    BlockingModule,
+    MatchingModule,
+    ShiftAnalyticsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, BcryptService, HttpStatusCodesService],
+  providers: [
+    AppService,
+    BcryptService,
+    HttpStatusCodesService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

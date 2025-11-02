@@ -7,6 +7,7 @@ import { UpdateShiftDto } from './dto/update-shift.dto/update-shift.dto';
 import { AssignShiftDto } from './dto/assign-shift.dto/assign-shift.dto';
 import { JobApplicationAppliedStatus } from 'src/constants';
 import { MailService } from '../mail/mail.service';
+import { ShiftAssignmentService } from './shift-assignment.service';
 
 @Injectable()
 export class ShiftService {
@@ -16,6 +17,7 @@ export class ShiftService {
     @InjectModel(JobApplying.name) private jobApplyingModel: Model<JobApplying>,
     @InjectModel(User.name) private userModel: Model<User>,
     private readonly mailService: MailService,
+    private readonly shiftAssignmentService: ShiftAssignmentService,
   ) { }
 
   async create(dto: CreateShiftDto, userId: string) {
@@ -72,6 +74,13 @@ export class ShiftService {
       });
 
       const savedShift = await shift.save();
+
+      // Create shift assignment record
+      await this.shiftAssignmentService.createAssignment(
+        savedShift._id.toString(),
+        assigneeId,
+        userId,
+      );
 
       // Send email notification to assigned seeker
       try {
@@ -167,6 +176,15 @@ export class ShiftService {
     shift.assignees = updatedAssignees;
     await shift.save();
 
+    // Create assignment records for new assignees
+    for (const assigneeId of newAssignees) {
+      await this.shiftAssignmentService.createAssignment(
+        shiftId,
+        assigneeId,
+        shift.createdBy.toString(),
+      );
+    }
+
     // Send email notifications to newly assigned seekers
     if (newAssignees.length > 0) {
       try {
@@ -229,7 +247,7 @@ export class ShiftService {
         .find({
           assignees: seekerObjectId,
           startDate: { $gte: today },
-          status: { $in: ['open', 'filled'] },
+          status: { $in: ['scheduled', 'in_progress'] },
         })
         .populate({
           path: 'jobId',
@@ -313,7 +331,7 @@ export class ShiftService {
         .find({
           assignees: seekerObjectId,
           endDate: { $lt: today },
-          status: 'filled',
+          status: 'completed',
         })
         .populate({
           path: 'jobId',
@@ -392,7 +410,7 @@ export class ShiftService {
       return this.shiftModel.countDocuments({
         assignees: seekerObjectId,
         endDate: { $lt: today },
-        status: 'filled',
+        status: 'completed',
       });
     }
     return 0;
@@ -457,7 +475,7 @@ export class ShiftService {
 
     // If no more assignees, update status to open
     if (shift.assignees.length === 0) {
-      shift.status = 'open';
+      shift.status = 'scheduled';
     }
 
     await shift.save();

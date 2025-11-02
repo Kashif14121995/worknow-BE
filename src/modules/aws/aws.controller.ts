@@ -6,10 +6,14 @@ import {
   Param,
   Res,
   UseInterceptors,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+  ParseFilePipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AwsService } from './aws.service';
 import { Response } from 'express';
+import { FileValidationInterceptor } from 'src/common/interceptors/file-validation.interceptor';
 import {
   ApiTags,
   ApiOperation,
@@ -27,7 +31,10 @@ export class AwsController {
 
   @Post('upload')
   @ApiBearerAuth()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file'),
+    FileValidationInterceptor,
+  )
   @ApiOperation({ summary: 'Upload a file to S3' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -37,12 +44,26 @@ export class AwsController {
         file: {
           type: 'string',
           format: 'binary',
+          description: 'File to upload (max 10MB, allowed: images, PDF, DOC)',
         },
       },
     },
   })
   @ApiResponse({ status: 201, description: 'File uploaded successfully' })
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+  @ApiResponse({ status: 400, description: 'Invalid file type or size' })
+  async uploadFile(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
+          new FileTypeValidator({
+            fileType: /(jpg|jpeg|png|gif|webp|pdf|doc|docx)/,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
     const fileUrl = await this.awsS3Service.uploadFile(
       file.originalname,
       file.buffer,

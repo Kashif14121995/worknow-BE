@@ -232,4 +232,99 @@ export class MailService {
     };
     await this.sendMail(template);
   }
+
+  // Invoice email trigger
+  async sendInvoiceEmail(data: {
+    recipientEmail: string;
+    recipientName: string;
+    issuerName: string;
+    invoiceNumber: string;
+    invoiceId: string;
+    amount: number;
+    dueDate: string;
+    invoiceUrl: string;
+  }) {
+    const template = {
+      to: data.recipientEmail,
+      from: this.FROM_EMAIL,
+      subject: `Invoice ${data.invoiceNumber} - $${data.amount.toFixed(2)}`,
+      template: './invoice',
+      context: {
+        recipientName: data.recipientName,
+        issuerName: data.issuerName,
+        invoiceNumber: data.invoiceNumber,
+        invoiceId: data.invoiceId,
+        amount: data.amount.toFixed(2),
+        dueDate: data.dueDate,
+        invoiceUrl: data.invoiceUrl,
+      },
+    };
+    await this.sendMail(template);
+  }
+
+  async sendEmailVerification(data: {
+    email: string;
+    name: string;
+    verificationToken: string;
+    verificationUrl: string;
+  }) {
+    const template = {
+      to: data.email,
+      from: this.FROM_EMAIL,
+      subject: 'Verify Your Email Address',
+      template: './email-verification',
+      context: {
+        name: data.name,
+        verificationUrl: data.verificationUrl,
+        verificationToken: data.verificationToken,
+      },
+    };
+    await this.sendMail(template);
+  }
+
+  async sendVerificationSubmissionEmail(data: {
+    supportEmail: string;
+    userName: string;
+    userEmail: string;
+    userRole: string;
+    documentType: string;
+    submittedAt: string;
+  }) {
+    const template = {
+      to: data.supportEmail,
+      from: this.FROM_EMAIL,
+      subject: `New Verification Submission - ${data.userName}`,
+      template: './verification-submission',
+      context: {
+        userName: data.userName,
+        userEmail: data.userEmail,
+        userRole: data.userRole,
+        documentType: data.documentType,
+        submittedAt: data.submittedAt,
+      },
+    };
+    await this.sendMail(template);
+  }
+
+  async sendNewSignupNotification(data: {
+    supportEmail: string;
+    userName: string;
+    userEmail: string;
+    userRole: string;
+    signedUpAt: string;
+  }) {
+    const template = {
+      to: data.supportEmail,
+      from: this.FROM_EMAIL,
+      subject: `New ${data.userRole} Sign-up - ${data.userName}`,
+      template: './new-signup-notification',
+      context: {
+        userName: data.userName,
+        userEmail: data.userEmail,
+        userRole: data.userRole,
+        signedUpAt: data.signedUpAt,
+      },
+    };
+    await this.sendMail(template);
+  }
 }

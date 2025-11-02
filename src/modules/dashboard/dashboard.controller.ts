@@ -6,6 +6,7 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBody } 
 import { SuccessResponse, ErrorResponse } from 'src/common/utils/response';
 import { DATA_FETCHED_SUCCESSFULLY, UserRole, UPDATE_SUCCESS, UPDATE_ERROR } from 'src/constants';
 import { HttpStatusCodesService } from '../http_status_codes/http_status_codes.service';
+import { Roles } from 'src/common/decorators/roles.decorator';
 import { 
   UpdateWorkExperienceDto, 
   UpdateAvailabilityDto, 
@@ -23,13 +24,11 @@ export class DashboardController {
     ) { }
 
     @Get()
+    @Roles(UserRole.job_provider)
+    @ApiOperation({ summary: 'Get provider dashboard statistics' })
     async getProviderDashboardStats(@Req() req: Request, @Res() res: Response) {
         try {
             const user = (req as any).user;
-            if (!user || user.role !== UserRole.job_provider) {
-                throw new ForbiddenException('Access restricted to providers');
-            }
-
             const providerId = user.id;
             const data = await this.dashboardService.getProviderDashboardStats(providerId);
 

@@ -5,6 +5,7 @@ import { MessageService } from './message.service';
 import { MessageController } from './message.controller';
 import { HttpStatusCodesService } from '../http_status_codes/http_status_codes.service';
 import { MailModule } from '../mail/mail.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { MailModule } from '../mail/mail.module';
       { name: User.name, schema: UserSchema },
     ]),
     MailModule,
+    NotificationModule,
   ],
   controllers: [MessageController],
   providers: [MessageService, HttpStatusCodesService],

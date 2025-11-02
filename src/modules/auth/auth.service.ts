@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { User } from 'src/schemas';
+import { User, RefreshToken } from 'src/schemas';
 import { Model } from 'mongoose';
+import { Types } from 'mongoose';
 import {
   CreateUserDto,
   ForgotPasswordDto,
@@ -9,6 +10,7 @@ import {
   LoginWithGoogleUserDto,
   LoginWithOTPUserDto,
 } from './dto/user.dto';
+import { ResetPasswordDto, ChangePasswordDto } from './dto/reset-password.dto';
 import { BcryptService } from 'src/modules/bcrypt/bcrypt.service';
 import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 import { JwtService } from '@nestjs/jwt';
@@ -28,6 +30,7 @@ export class AuthService extends HttpStatusCodesService {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshToken>,
     private jwtService: JwtService,
     private mailService: MailService,
     private configService: ConfigService,
@@ -63,15 +66,54 @@ export class AuthService extends HttpStatusCodesService {
       const HashedPassword = await this.bcryptService.createHashPassword(
         userInfo.password,
       );
+
+      // Generate email verification token
+      const emailVerificationToken = require('crypto').randomBytes(32).toString('hex');
+      const emailVerificationTokenExpires = new Date();
+      emailVerificationTokenExpires.setHours(emailVerificationTokenExpires.getHours() + 24); // 24 hours
+
       const user = (
         await this.userModel.create({
           ...userInfo,
           password: HashedPassword,
+          emailVerified: false,
+          emailVerificationToken,
+          emailVerificationTokenExpires,
         })
       ).toObject();
-      const access_token = await this.createJWTTokenForUser(user);
 
-      return { ...user, access_token };
+      // Send verification email
+      try {
+        await this.mailService.sendEmailVerification({
+          email: userInfo.email,
+          name: `${userInfo.first_name} ${userInfo.last_name}`,
+          verificationToken: emailVerificationToken,
+          verificationUrl: `${this.frontEndBaseUrl}/verify-email?token=${emailVerificationToken}`,
+        });
+      } catch (error) {
+        console.error('Error sending verification email:', error);
+        // Don't fail user creation if email fails
+      }
+
+      // Notify support team of new sign-up
+      try {
+        const supportEmail = process.env.SUPPORT_EMAIL || 'support@worknow.com';
+        await this.mailService.sendNewSignupNotification({
+          supportEmail,
+          userName: `${userInfo.first_name} ${userInfo.last_name}`,
+          userEmail: userInfo.email,
+          userRole: userInfo.role,
+          signedUpAt: new Date().toLocaleString(),
+        });
+      } catch (error) {
+        console.error('Error sending sign-up notification to support:', error);
+        // Don't fail user creation if notification fails
+      }
+
+      const access_token = await this.createJWTTokenForUser(user);
+      const refresh_token = await this.generateRefreshToken(user._id.toString());
+
+      return { ...user, access_token, refresh_token };
     } catch (error) {
       if (error.code === 11000) {
         throw new Error(this.STATUS_ALREADY_EXIST_MESSAGE);
@@ -99,8 +141,9 @@ export class AuthService extends HttpStatusCodesService {
       throw new Error(this.STATUS_MESSAGE_FOR_UNAUTHORIZED);
     }
     const access_token = await this.createJWTTokenForUser(userDbDetails);
+    const refresh_token = await this.generateRefreshToken(userDbDetails._id.toString());
     const { password: _, ...restUserData } = userDbDetails;
-    return { access_token, ...restUserData };
+    return { access_token, refresh_token, ...restUserData };
   }
 
   async loginWithGoogle(userGoogleInfo: LoginWithGoogleUserDto) {
@@ -123,9 +166,10 @@ export class AuthService extends HttpStatusCodesService {
     const userDbDetails = user.toObject();
 
     const access_token = await this.createJWTTokenForUser(userDbDetails);
+    const refresh_token = await this.generateRefreshToken(userDbDetails._id.toString());
     const { password: _, ...restUserData } = userDbDetails;
 
-    return { access_token, ...restUserData };
+    return { access_token, refresh_token, ...restUserData };
   }
 
   async loginWithOTp({ email }: LoginWithOTPUserDto) {
@@ -172,13 +216,14 @@ export class AuthService extends HttpStatusCodesService {
     await user.updateOne({ otp: undefined, otp_expires_after: undefined });
 
     const access_token = await this.createJWTTokenForUser(userDbDetails);
+    const refresh_token = await this.generateRefreshToken(userDbDetails._id.toString());
     const {
       password: _,
       otp_expires_after: _otp_expires_after,
       otp: _otp,
       ...restUserData
     } = userDbDetails;
-    return { access_token, ...restUserData };
+    return { access_token, refresh_token, ...restUserData };
   }
 
   async forgotPassword({ email }: ForgotPasswordDto) {
@@ -187,15 +232,157 @@ export class AuthService extends HttpStatusCodesService {
       throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
     }
 
+    // Generate password reset token
+    const passwordResetToken = require('crypto').randomBytes(32).toString('hex');
+    const passwordResetTokenExpires = new Date();
+    passwordResetTokenExpires.setHours(passwordResetTokenExpires.getHours() + 1); // 1 hour expiry
+
+    // Save token to user
+    await this.userModel.findByIdAndUpdate(user._id, {
+      passwordResetToken,
+      passwordResetTokenExpires,
+    });
+
     const userDbDetails = user.toObject();
-    const jwt = await this.createJWTTokenForUser(userDbDetails);
-    const url = `${this.frontEndBaseUrl}?token=${jwt}`;
+    const resetUrl = `${this.frontEndBaseUrl}/reset-password?token=${passwordResetToken}`;
 
     await this.mailService.sendForgotPasswordMail({
       email,
       name: userDbDetails.first_name + ' ' + userDbDetails.last_name,
-      url,
+      url: resetUrl,
     });
     return true;
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.userModel.findOne({
+      passwordResetToken: dto.token,
+      passwordResetTokenExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const hashedPassword = await this.bcryptService.createHashPassword(dto.newPassword);
+
+    await this.userModel.findByIdAndUpdate(user._id, {
+      password: hashedPassword,
+      passwordResetToken: undefined,
+      passwordResetTokenExpires: undefined,
+    });
+
+    return { message: 'Password reset successfully' };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new Error(this.STATUS_MESSAGE_FOR_NOT_FOUND);
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await this.bcryptService.comparePassword(
+      dto.currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    // Hash new password
+    const hashedPassword = await this.bcryptService.createHashPassword(dto.newPassword);
+
+    // Update password
+    await this.userModel.findByIdAndUpdate(userId, {
+      password: hashedPassword,
+    });
+
+    return { message: 'Password changed successfully' };
+  }
+
+  async verifyEmail(token: string) {
+    const user = await this.userModel.findOne({
+      emailVerificationToken: token,
+      emailVerificationTokenExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    await this.userModel.findByIdAndUpdate(user._id, {
+      emailVerified: true,
+      emailVerificationToken: undefined,
+      emailVerificationTokenExpires: undefined,
+    });
+
+    return { message: 'Email verified successfully' };
+  }
+
+  // Generate refresh token
+  private async generateRefreshToken(userId: string, ipAddress?: string, userAgent?: string): Promise<string> {
+    const expiresInDays = parseInt(
+      this.configService.get<string>('REFRESH_TOKEN_EXPIRATION_DAYS') || '30',
+    );
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+    // Generate secure random token
+    const token = require('crypto').randomBytes(64).toString('hex');
+
+    await this.refreshTokenModel.create({
+      userId: new Types.ObjectId(userId),
+      token,
+      expiresAt,
+      ipAddress,
+      userAgent,
+    });
+
+    return token;
+  }
+
+  // Refresh access token
+  async refreshAccessToken(refreshToken: string, ipAddress?: string, userAgent?: string) {
+    const tokenDoc = await this.refreshTokenModel.findOne({
+      token: refreshToken,
+      isRevoked: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!tokenDoc) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const user = await this.userModel.findById(tokenDoc.userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Revoke old token (token rotation)
+    await this.refreshTokenModel.findByIdAndUpdate(tokenDoc._id, { isRevoked: true });
+
+    // Generate new tokens
+    const userDbDetails = user.toObject();
+    const access_token = await this.createJWTTokenForUser(userDbDetails);
+    const newRefreshToken = await this.generateRefreshToken(
+      userDbDetails._id.toString(),
+      ipAddress,
+      userAgent,
+    );
+
+    return {
+      access_token,
+      refresh_token: newRefreshToken,
+    };
+  }
+
+  // Revoke refresh token (logout)
+  async revokeRefreshToken(refreshToken: string): Promise<void> {
+    await this.refreshTokenModel.updateOne(
+      { token: refreshToken },
+      { isRevoked: true },
+    );
   }
 }

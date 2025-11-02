@@ -154,6 +154,8 @@ export const PaymentSchema = SchemaFactory.createForClass(Payment);
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);
 export const WalletSchema = SchemaFactory.createForClass(Wallet);
 
+export type WalletDocument = HydratedDocument<Wallet>;
+
 // Indexes
 PaymentSchema.index({ userId: 1, status: 1 });
 PaymentSchema.index({ paymentId: 1 }, { unique: true });

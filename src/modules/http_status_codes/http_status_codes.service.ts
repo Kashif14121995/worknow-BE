@@ -10,6 +10,8 @@ export class HttpStatusCodesService {
   readonly STATUS_SUCCESSFULLY_CREATION = StatusCodes.CREATED;
   readonly STATUS_INTERNAL_SERVER_ERROR = StatusCodes.INTERNAL_SERVER_ERROR;
   readonly STATUS_EXPIRED = StatusCodes.GONE;
+  readonly STATUS_BAD_REQUEST = StatusCodes.BAD_REQUEST;
+  readonly STATUS_FORBIDDEN = StatusCodes.FORBIDDEN;
 
   readonly STATUS_MESSAGE_FOR_EXPIRED = getReasonPhrase(StatusCodes.GONE);
 

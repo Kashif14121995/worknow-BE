@@ -13,6 +13,8 @@ import {
   JobApplying, JobApplyingSchema,
   JobPosting, JobPostingSchema,
 } from 'src/schemas';
+import { NotificationModule } from '../notification/notification.module';
+import { BlockingModule } from '../blocking/blocking.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import {
       { name: User.name, schema: UserSchema },
     ]),
     MailModule,
+    NotificationModule,
+    BlockingModule,
   ],
   controllers: [JobsController],
   providers: [JobsService, JwtService, HttpStatusCodesService],

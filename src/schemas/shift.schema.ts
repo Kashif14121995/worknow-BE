@@ -27,7 +27,7 @@ export class Shift {
   @Prop({ required: true })
   endTime: string; // HH:mm
 
-  @Prop({ default: 'open', enum: ['open', 'filled', 'cancelled'] })
+  @Prop({ default: 'scheduled', enum: ['scheduled', 'in_progress', 'completed', 'missed', 'cancelled'] })
   status: string;
 
   @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
@@ -35,6 +35,16 @@ export class Shift {
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   createdBy: Types.ObjectId;
+
+  // Additional fields from FRS
+  @Prop({ type: String, required: false })
+  location?: string; // Location details/notes
+
+  @Prop({ type: String, required: false })
+  notes?: string; // Additional notes about the shift
+
+  @Prop({ type: Number, required: false, default: 0 })
+  breakMinutes?: number; // Break time in minutes
 }
 
 export const ShiftSchema = SchemaFactory.createForClass(Shift);

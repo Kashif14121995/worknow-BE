@@ -222,12 +222,12 @@ export class PaymentController {
   @ApiQuery({ name: 'status', required: false, enum: TransactionStatus })
   @ApiResponse({ status: 200, description: 'Transactions fetched successfully' })
   async getTransactionHistory(
+    @Req() request: Request,
+    @Res() res: Response,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
     @Query('type') type?: PaymentTypeEnum,
     @Query('status') status?: TransactionStatus,
-    @Req() request: Request,
-    @Res() res: Response,
   ) {
     try {
       const userId = request.user.id;
@@ -265,12 +265,12 @@ export class PaymentController {
   @ApiQuery({ name: 'status', required: false, enum: TransactionStatus })
   @ApiResponse({ status: 200, description: 'Payments fetched successfully' })
   async getPaymentHistory(
+    @Req() request: Request,
+    @Res() res: Response,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
     @Query('paymentType') paymentType?: PaymentTypeEnum,
     @Query('status') status?: TransactionStatus,
-    @Req() request: Request,
-    @Res() res: Response,
   ) {
     try {
       const userId = request.user.id;

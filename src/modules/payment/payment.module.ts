@@ -5,7 +5,9 @@ import { PaymentService } from './payment.service';
 import { PaymentController } from './payment.controller';
 import { StripeModule } from '../stripe/stripe.module';
 import { MailModule } from '../mail/mail.module';
+import { NotificationModule } from '../notification/notification.module';
 import { HttpStatusCodesService } from '../http_status_codes/http_status_codes.service';
+import { InvoiceModule } from '../invoice/invoice.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { HttpStatusCodesService } from '../http_status_codes/http_status_codes.s
     ]),
     StripeModule.forRootAsync(),
     MailModule,
+    InvoiceModule,
+    NotificationModule,
   ],
   controllers: [PaymentController],
   providers: [PaymentService, HttpStatusCodesService],

@@ -4,6 +4,8 @@ import { Model, Types } from 'mongoose';
 import { Message, MessageDocument, User } from 'src/schemas';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MailService } from '../mail/mail.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from 'src/schemas/notification.schema';
 
 @Injectable()
 export class MessageService {
@@ -37,7 +39,7 @@ export class MessageService {
           receiverEmail: receiver.email,
           receiverName: `${receiver.first_name} ${receiver.last_name}`,
           senderName: `${sender.first_name} ${sender.last_name}`,
-          messagePreview: dto.message,
+          messagePreview: dto.message.substring(0, 100), // Preview first 100 chars
         });
       }
     } catch (error) {

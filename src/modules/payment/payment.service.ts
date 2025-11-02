@@ -2,16 +2,19 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException 
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Payment, Transaction, Wallet, PaymentDocument, TransactionDocument, WalletDocument, User, Counter, CounterDocument, JobPosting, Shift, ShiftDocument } from 'src/schemas';
+import { WalletDocument as WalletDocType } from 'src/schemas/payment.schema';
 import { StripeService } from '../stripe/stripe.service';
 import { PaymentTypeEnum, TransactionStatus } from 'src/schemas/payment.schema';
 import { MailService } from '../mail/mail.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from 'src/schemas/notification.schema';
 
 @Injectable()
 export class PaymentService {
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @InjectModel(Transaction.name) private transactionModel: Model<TransactionDocument>,
-    @InjectModel(Wallet.name) private walletModel: Model<WalletDocument>,
+    @InjectModel(Wallet.name) private walletModel: Model<WalletDocType>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Counter.name) private counterModel: Model<CounterDocument>,
     @InjectModel(JobPosting.name) private jobPostingModel: Model<JobPosting>,
@@ -21,7 +24,7 @@ export class PaymentService {
   ) {}
 
   // Initialize wallet for a user
-  async initializeWallet(userId: string): Promise<Wallet> {
+  async initializeWallet(userId: string): Promise<WalletDocType> {
     const existingWallet = await this.walletModel.findOne({ userId });
     if (existingWallet) {
       return existingWallet;
@@ -51,8 +54,8 @@ export class PaymentService {
   }
 
   // Get wallet balance
-  async getWalletBalance(userId: string): Promise<Wallet> {
-    let wallet = await this.walletModel.findOne({ userId });
+  async getWalletBalance(userId: string): Promise<WalletDocType> {
+    let wallet: WalletDocType | null = await this.walletModel.findOne({ userId });
     if (!wallet) {
       wallet = await this.initializeWallet(userId);
     }
@@ -147,25 +150,38 @@ export class PaymentService {
       // For now, we'll simulate the transaction
       
       // Deduct from provider wallet
-      providerWallet.totalSpent += amount;
-      if (providerWallet.balance >= amount) {
-        providerWallet.balance -= amount;
+      const providerWalletDoc = providerWallet as any;
+      providerWalletDoc.totalSpent += amount;
+      if (providerWalletDoc.balance >= amount) {
+        providerWalletDoc.balance -= amount;
       }
-      await providerWallet.save();
+      await this.walletModel.findByIdAndUpdate(providerWalletDoc._id || providerWalletDoc.id, {
+        totalSpent: providerWalletDoc.totalSpent,
+        balance: providerWalletDoc.balance,
+      });
 
       // Add to seeker wallet (initially as pending, then move to balance after confirmation)
-      seekerWallet.totalEarnings += amount;
-      seekerWallet.pendingBalance += amount;
-      await seekerWallet.save();
+      const seekerWalletDoc = seekerWallet as any;
+      seekerWalletDoc.totalEarnings += amount;
+      seekerWalletDoc.pendingBalance += amount;
+      await this.walletModel.findByIdAndUpdate(seekerWalletDoc._id || seekerWalletDoc.id, {
+        totalEarnings: seekerWalletDoc.totalEarnings,
+        pendingBalance: seekerWalletDoc.pendingBalance,
+      });
 
       // Update transaction status
-      transaction.status = TransactionStatus.COMPLETED;
-      await transaction.save();
+      const transactionDoc = transaction as any;
+      await this.transactionModel.findByIdAndUpdate(transactionDoc._id, {
+        status: TransactionStatus.COMPLETED,
+      });
 
       // Move from pending to balance (could be done via webhook after Stripe confirms)
-      seekerWallet.pendingBalance -= amount;
-      seekerWallet.balance += amount;
-      await seekerWallet.save();
+      seekerWalletDoc.pendingBalance -= amount;
+      seekerWalletDoc.balance += amount;
+      await this.walletModel.findByIdAndUpdate(seekerWalletDoc._id || seekerWalletDoc.id, {
+        pendingBalance: seekerWalletDoc.pendingBalance,
+        balance: seekerWalletDoc.balance,
+      });
 
       // Send email notification to seeker
       try {
@@ -237,8 +253,11 @@ export class PaymentService {
 
     // In real scenario, use Stripe Connect to transfer to bank account
     // For now, we'll update the wallet
-    wallet.balance -= amount;
-    await wallet.save();
+    const walletDoc = wallet as any;
+    walletDoc.balance -= amount;
+    await this.walletModel.findByIdAndUpdate(walletDoc._id || walletDoc.id, {
+      balance: walletDoc.balance,
+    });
 
     transaction.status = TransactionStatus.COMPLETED;
     await transaction.save();

@@ -12,6 +12,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { JobStatus, JobApplicationAppliedStatus } from 'src/constants';
 import * as moment from 'moment';
 import { User, JobApplying, JobPosting, Shift } from 'src/schemas';
+import { MailService } from '../mail/mail.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from 'src/schemas/notification.schema';
+import { BlockingService } from '../blocking/blocking.service';
 
 @Injectable()
 export class JobsService {
@@ -20,6 +24,9 @@ export class JobsService {
     @InjectModel(JobApplying.name) private jobApplyingModel: Model<JobApplying>,
     @InjectModel(Shift.name) private shiftModel: Model<Shift>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    private readonly mailService: MailService,
+    private readonly notificationService: NotificationService,
+    private readonly blockingService: BlockingService,
   ) { }
   async create(CreateJobListingDto: CreateJobListingDto, userId: string) {
     const job = await this.jobPostingModel.create({
@@ -36,13 +43,14 @@ export class JobsService {
       try {
         const provider = await this.userModel.findById(userId);
         if (provider) {
+          const jobDoc = job.toObject ? job.toObject() : job as any;
           await this.mailService.sendJobPostedEmail({
             providerEmail: provider.email,
             providerName: `${provider.first_name} ${provider.last_name}`,
             jobTitle: job.jobTitle,
             jobId: job.jobId,
             jobLocation: job.workLocation,
-            postedDate: new Date(job.createdAt).toLocaleDateString(),
+            postedDate: jobDoc.createdAt ? new Date(jobDoc.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
           });
         }
       } catch (error) {
@@ -55,6 +63,16 @@ export class JobsService {
   }
 
   async applyForJob(jobId: string, userId: string) {
+    // 0️⃣ Fetch the job first to check blocking
+    const job = await this.jobPostingModel.findById(jobId);
+    if (!job) throw new NotFoundException('Job not found.');
+
+    // Check if user is blocked by this job's provider
+    const isBlocked = await this.blockingService.isBlocked(job.postedBy.toString(), userId);
+    if (isBlocked) {
+      throw new ForbiddenException('You have been blocked by this provider and cannot apply to their jobs');
+    }
+
     // 1️⃣ Fetch the user
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found.');
@@ -64,14 +82,20 @@ export class JobsService {
       throw new ForbiddenException('Only job seekers can apply for jobs.');
     }
 
-    // // 3️⃣ Ensure profile completeness
-    // if (!user.skills || user.skills.length === 0 || !user.experience || !user.education) {
-    //   throw new BadRequestException('Complete your profile (skills, experience, education) to apply.');
-    // }
+    // 3️⃣ Ensure profile completeness
+    if (!user.skills || user.skills.length === 0) {
+      throw new BadRequestException('Please add at least one skill to your profile to apply for jobs.');
+    }
+    
+    if (user.experience === undefined || user.experience === null) {
+      throw new BadRequestException('Please add your work experience to your profile to apply for jobs.');
+    }
+    
+    if (!user.education) {
+      throw new BadRequestException('Please add your education details to your profile to apply for jobs.');
+    }
 
-    // 4️⃣ Fetch the job
-    const job = await this.jobPostingModel.findById(jobId);
-    if (!job) throw new NotFoundException('Job not found.');
+    // 4️⃣ Job already fetched above for blocking check
 
     // 5️⃣ Only active jobs can be applied for
     if (job.status !== 'active') {
@@ -99,20 +123,20 @@ export class JobsService {
       throw new BadRequestException('The application deadline for this job has passed.');
     }
 
-    // // 9️⃣ Check experience requirement
-    // if (job.experienceLevel && user.experience < parseInt(job.experienceLevel)) {
-    //   throw new BadRequestException('You do not meet the experience requirement.');
-    // }
+    // 9️⃣ Check experience requirement
+    if (job.experienceLevel && user.experience < parseInt(job.experienceLevel)) {
+      throw new BadRequestException(`You do not meet the experience requirement. This job requires ${job.experienceLevel} years of experience.`);
+    }
 
-    // // 10️⃣ Check education requirement
-    // if (job.education && user.education.toLowerCase() !== job.education.toLowerCase()) {
-    //   throw new BadRequestException('You do not meet the education requirement.');
-    // }
+    // 10️⃣ Check education requirement
+    if (job.education && user.education.toLowerCase() !== job.education.toLowerCase()) {
+      throw new BadRequestException(`You do not meet the education requirement. This job requires: ${job.education}`);
+    }
 
-    // // 11️⃣ Check location restriction (if applicable)
-    // if (job.workLocation && user.location && user.location !== job.workLocation) {
-    //   throw new BadRequestException(`This job requires location: ${job.workLocation}`);
-    // }
+    // 11️⃣ Check location restriction (if applicable)
+    if (job.workLocation && user.location && user.location.toLowerCase() !== job.workLocation.toLowerCase()) {
+      throw new BadRequestException(`This job requires location: ${job.workLocation}. Your current location is: ${user.location}`);
+    }
 
     // 12️⃣ Check overlapping shifts
     const overlappingShift = await this.jobApplyingModel
@@ -535,7 +559,7 @@ export class JobsService {
     }
 
     // Update application status to shortlisted
-    application.status = JobApplicationAppliedStatus.shortlisted;
+    application.status = JobApplicationAppliedStatus.shortlisted as any;
     await application.save();
 
     const populatedApp = await application.populate([
@@ -583,7 +607,7 @@ export class JobsService {
     }
 
     // Update application status to rejected
-    application.status = JobApplicationAppliedStatus.rejected;
+    application.status = JobApplicationAppliedStatus.rejected as any;
     await application.save();
 
     const populatedApp = await application.populate([
@@ -612,6 +636,30 @@ export class JobsService {
     return populatedApp;
   }
 
+  async withdrawApplication(applicationId: string, seekerId: string): Promise<JobApplying> {
+    const application = await this.jobApplyingModel.findById(applicationId);
+    
+    if (!application) {
+      throw new NotFoundException('Application not found');
+    }
+
+    // Verify the application belongs to the seeker
+    const applicationSeekerId = application.appliedBy.toString();
+    if (applicationSeekerId !== seekerId) {
+      throw new ForbiddenException('You can only withdraw your own applications');
+    }
+
+    // Check if application can be withdrawn (not already hired or completed)
+    if (application.status === 'hired' || application.status === 'completed') {
+      throw new BadRequestException('Cannot withdraw a hired or completed application');
+    }
+
+    // Delete the application
+    await this.jobApplyingModel.findByIdAndDelete(applicationId);
+
+    return application;
+  }
+
   async hireApplication(applicationId: string, providerId: string): Promise<JobApplying> {
     const application = await this.jobApplyingModel.findById(applicationId).populate('appliedFor');
     
@@ -630,7 +678,7 @@ export class JobsService {
     }
 
     // Update application status to hired
-    application.status = JobApplicationAppliedStatus.hired;
+    application.status = JobApplicationAppliedStatus.hired as any;
     await application.save();
 
     const populatedApp = await application.populate([

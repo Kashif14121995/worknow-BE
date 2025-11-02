@@ -42,16 +42,16 @@ export class DashboardService {
                 appliedFor: { $in: jobIds },
             }),
 
-            // Count open shifts (using createdBy instead of jobId)
+            // Count scheduled shifts (using createdBy instead of jobId)
             this.shiftModel.countDocuments({
                 createdBy: providerObjectId,
-                status: ShiftStatus.OPEN,
+                status: ShiftStatus.SCHEDULED,
             }),
 
-            // Count filled shifts (using createdBy)
+            // Count completed shifts (using createdBy)
             this.shiftModel.countDocuments({
                 createdBy: providerObjectId,
-                status: ShiftStatus.FILLED,
+                status: ShiftStatus.COMPLETED,
             }),
         ]);
 
@@ -144,9 +144,9 @@ export class DashboardService {
             const job = shift.jobId as any;
             if (job && job.amount) {
                 totalExpenditure += job.amount;
-                // Check if shift is completed (status = 'filled' and endDate < today)
+                // Check if shift is completed (status = 'completed')
                 const today = new Date();
-                if (shift.status === 'filled' && shift.endDate < today) {
+                if (shift.status === 'completed') {
                     processed += job.amount;
                 } else {
                     pending += job.amount;
@@ -371,7 +371,7 @@ export class DashboardService {
         const earningsDetail = shifts.map((shift: any) => {
             const job = shift.jobId;
             const employer = shift.createdBy;
-            const isCompleted = shift.endDate < today && shift.status === 'filled';
+            const isCompleted = shift.status === 'completed';
             const isPending = !isCompleted;
 
             return {

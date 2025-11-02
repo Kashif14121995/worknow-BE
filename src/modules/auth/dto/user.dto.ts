@@ -12,18 +12,22 @@ import {
 import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from 'src/constants';
+import { Sanitize } from 'src/common/decorators/sanitize.decorator';
 
 export class CreateUserDto {
   @ApiProperty()
   @IsString()
+  @Sanitize()
   first_name: string;
 
   @ApiProperty()
   @IsString()
+  @Sanitize()
   last_name: string;
 
   @ApiProperty()
   @IsString()
+  @Transform(({ value }) => value?.toLowerCase().trim())
   email: string;
 
   @ApiPropertyOptional({ example: 9876543210 })

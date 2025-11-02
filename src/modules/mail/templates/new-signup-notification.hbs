@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #27ae60; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; background-color: #f9f9f9; }
+    .info { background-color: white; padding: 15px; margin: 10px 0; border-left: 4px solid #27ae60; }
+    .footer { text-align: center; padding: 20px; color: #777; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>New User Sign-up</h1>
+    </div>
+    <div class="content">
+      <p>Hello Support Team,</p>
+      <p>A new user has signed up on the WorkNow platform.</p>
+      
+      <div class="info">
+        <strong>User Details:</strong><br>
+        Name: {{ userName }}<br>
+        Email: {{ userEmail }}<br>
+        Role: {{ userRole }}<br>
+        Signed Up At: {{ signedUpAt }}
+      </div>
+
+      <p>Please review this new user account in the admin panel.</p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2024 WorkNow. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+

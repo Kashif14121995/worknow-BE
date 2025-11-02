@@ -26,7 +26,7 @@ export class User {
   @Prop()
   otp_expires_after: number;
 
-  @Prop({ enum: [UserRole.job_provider, UserRole.job_seeker] })
+  @Prop({ enum: [UserRole.job_provider, UserRole.job_seeker, UserRole.admin] })
   role: string;
 
   // Optional array of skills
@@ -43,6 +43,24 @@ export class User {
 
   @Prop({ type: String, required: false })
   location?: string
+
+  @Prop({ default: false })
+  emailVerified?: boolean;
+
+  @Prop({ default: false })
+  identityVerified?: boolean; // Identity verification status
+
+  @Prop({ type: String, required: false })
+  emailVerificationToken?: string;
+
+  @Prop({ type: Date, required: false })
+  emailVerificationTokenExpires?: Date;
+
+  @Prop({ type: String, required: false })
+  passwordResetToken?: string;
+
+  @Prop({ type: Date, required: false })
+  passwordResetTokenExpires?: Date;
 
   @Prop()
   createdAt?: Date;
