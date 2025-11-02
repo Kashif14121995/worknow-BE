@@ -24,6 +24,8 @@ import { ConfigService } from '@nestjs/config';
           from: `"No Reply" <${config.get('MAIL_FROM')}>`,
         },
         template: {
+          // __dirname will point to dist/modules/mail in production after compilation
+          // Templates are copied to dist/modules/mail/templates via nest-cli.json assets config
           dir: join(__dirname, 'templates'),
           adapter: new HandlebarsAdapter(),
           options: {
