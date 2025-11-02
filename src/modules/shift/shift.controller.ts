@@ -123,157 +123,7 @@ export class ShiftController {
     }
   }
 
-  @Get('/:id')
-  @ApiOperation({ summary: 'Get a shift by ID' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ status: 200, description: 'Shift fetched successfully' })
-  async findOne(
-    @Param('id') id: string,
-    @Res() res: Response,
-  ): APIResponse {
-    try {
-      const data = await this.shiftService.findOne(id);
-      return res
-        .status(this.http.STATUS_OK)
-        .json(
-          new SuccessResponse(
-            data,
-            DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'shift'),
-          ),
-        );
-    } catch (error) {
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            this.FIND_SHIFT_ERROR,
-            error.message,
-          ),
-        );
-    }
-  }
-
-  @Patch('/:id')
-  @ApiOperation({ summary: 'Update a shift by ID' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiBody({ type: UpdateShiftDto })
-  @ApiResponse({ status: 200, description: 'Shift updated successfully' })
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateShiftDto,
-    @Res() res: Response,
-  ): APIResponse {
-    try {
-      const data = await this.shiftService.update(id, dto);
-      return res
-        .status(this.http.STATUS_OK)
-        .json(
-          new SuccessResponse(
-            data,
-            UPDATE_SUCCESS.replace('{{entity}}', 'shift'),
-          ),
-        );
-    } catch (error) {
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            UPDATE_ERROR.replace('{{entity}}', 'shift'),
-            error.message,
-          ),
-        );
-    }
-  }
-
-  @Delete('/:id')
-  @ApiOperation({ summary: 'Delete a shift by ID' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ status: 200, description: 'Shift deleted successfully' })
-  async remove(
-    @Param('id') id: string,
-    @Res() res: Response,
-  ): APIResponse {
-    try {
-      const data = await this.shiftService.remove(id);
-      return res
-        .status(this.http.STATUS_OK)
-        .json(new SuccessResponse(data, 'Shift deleted successfully'));
-    } catch (error) {
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            'Error deleting shift',
-            error.message,
-          ),
-        );
-    }
-  }
-
-  // ============================================
-  // SHIFT ASSIGNMENT OPERATIONS
-  // ============================================
-
-  @Post('/:id/assign')
-  @ApiOperation({ summary: 'Assign users to a shift' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiBody({ type: AssignShiftDto })
-  @ApiResponse({ status: 201, description: 'Shift assigned successfully' })
-  async assign(
-    @Param('id') id: string,
-    @Body() dto: AssignShiftDto,
-    @Res() res: Response,
-  ): APIResponse {
-    try {
-      const data = await this.shiftService.assignAssignees(id, dto);
-      return res
-        .status(this.http.STATUS_SUCCESSFULLY_CREATION)
-        .json(new SuccessResponse(data, 'Shift assigned successfully'));
-    } catch (error) {
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            'Error assigning shift',
-            error.message,
-          ),
-        );
-    }
-  }
-
-  @Post('/:id/unassign')
-  @ApiOperation({ summary: 'Unassign users from a shift' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiBody({ type: AssignShiftDto })
-  @ApiResponse({ status: 200, description: 'Shift unassigned successfully' })
-  async unassign(
-    @Param('id') id: string,
-    @Body() dto: AssignShiftDto,
-    @Res() res: Response,
-  ): APIResponse {
-    try {
-      const data = await this.shiftService.unassignAssignees(id, dto);
-      return res
-        .status(this.http.STATUS_OK)
-        .json(new SuccessResponse(data, 'Shift unassigned successfully'));
-    } catch (error) {
-      return res
-        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
-        .json(
-          new ErrorResponse(
-            this.http.STATUS_INTERNAL_SERVER_ERROR,
-            'Error unassigning shift',
-            error.message,
-          ),
-        );
-    }
-  }
-
-  // ============================================
+    // ============================================
   // JOB SEEKER SHIFT MANAGEMENT
   // ============================================
 
@@ -464,6 +314,157 @@ export class ShiftController {
           error.message,
         ),
       );
+    }
+  }
+
+
+  @Get('/:id')
+  @ApiOperation({ summary: 'Get a shift by ID' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Shift fetched successfully' })
+  async findOne(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const data = await this.shiftService.findOne(id);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(
+          new SuccessResponse(
+            data,
+            DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'shift'),
+          ),
+        );
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            this.FIND_SHIFT_ERROR,
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Patch('/:id')
+  @ApiOperation({ summary: 'Update a shift by ID' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: UpdateShiftDto })
+  @ApiResponse({ status: 200, description: 'Shift updated successfully' })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateShiftDto,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const data = await this.shiftService.update(id, dto);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(
+          new SuccessResponse(
+            data,
+            UPDATE_SUCCESS.replace('{{entity}}', 'shift'),
+          ),
+        );
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            UPDATE_ERROR.replace('{{entity}}', 'shift'),
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Delete('/:id')
+  @ApiOperation({ summary: 'Delete a shift by ID' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Shift deleted successfully' })
+  async remove(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const data = await this.shiftService.remove(id);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, 'Shift deleted successfully'));
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            'Error deleting shift',
+            error.message,
+          ),
+        );
+    }
+  }
+
+  // ============================================
+  // SHIFT ASSIGNMENT OPERATIONS
+  // ============================================
+
+  @Post('/:id/assign')
+  @ApiOperation({ summary: 'Assign users to a shift' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: AssignShiftDto })
+  @ApiResponse({ status: 201, description: 'Shift assigned successfully' })
+  async assign(
+    @Param('id') id: string,
+    @Body() dto: AssignShiftDto,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const data = await this.shiftService.assignAssignees(id, dto);
+      return res
+        .status(this.http.STATUS_SUCCESSFULLY_CREATION)
+        .json(new SuccessResponse(data, 'Shift assigned successfully'));
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            'Error assigning shift',
+            error.message,
+          ),
+        );
+    }
+  }
+
+  @Post('/:id/unassign')
+  @ApiOperation({ summary: 'Unassign users from a shift' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: AssignShiftDto })
+  @ApiResponse({ status: 200, description: 'Shift unassigned successfully' })
+  async unassign(
+    @Param('id') id: string,
+    @Body() dto: AssignShiftDto,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const data = await this.shiftService.unassignAssignees(id, dto);
+      return res
+        .status(this.http.STATUS_OK)
+        .json(new SuccessResponse(data, 'Shift unassigned successfully'));
+    } catch (error) {
+      return res
+        .status(this.http.STATUS_INTERNAL_SERVER_ERROR)
+        .json(
+          new ErrorResponse(
+            this.http.STATUS_INTERNAL_SERVER_ERROR,
+            'Error unassigning shift',
+            error.message,
+          ),
+        );
     }
   }
 }

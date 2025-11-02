@@ -27,9 +27,14 @@ async function bootstrap() {
   // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // CORS Configuration - restrict to specific origins
-  const allowedOrigins = process.env.FRONTEND_URL 
-    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  // CORS Configuration - same domain setup (frontend and backend on same domain)
+  const isProduction = process.env.NODE_ENV === 'production';
+  const backendBaseUrl = process.env.BASE_URL || 'https://theworknow.com';
+  
+  // In production, allow same origin (frontend and backend on same domain)
+  // In development, allow localhost origins
+  const allowedOrigins = isProduction 
+    ? [backendBaseUrl] // Same domain - frontend and backend share the origin
     : ['http://localhost:3000', 'http://localhost:3001'];
 
   app.enableCors({
@@ -37,10 +42,24 @@ async function bootstrap() {
       // Allow requests with no origin (like mobile apps, curl, Postman)
       if (!origin) return callback(null, true);
       
-      if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-        callback(null, true);
+      // In production, allow same domain origin
+      if (isProduction) {
+        // Extract the origin from the request (without path)
+        const requestOrigin = origin.replace(/\/+$/, ''); // Remove trailing slashes
+        const baseOrigin = backendBaseUrl.replace(/\/+$/, ''); // Remove trailing slashes
+        
+        if (requestOrigin === baseOrigin || allowedOrigins.some(allowed => origin === allowed)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
       } else {
-        callback(new Error('Not allowed by CORS'));
+        // Development: allow localhost origins
+        if (allowedOrigins.indexOf(origin) !== -1) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
       }
     },
     credentials: true,
@@ -54,9 +73,6 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
-  const isProduction = process.env.NODE_ENV === 'production';
-  const backendBaseUrl = process.env.BASE_URL || 'https://theworknow.com';
   
   const config = new DocumentBuilder()
     .setTitle('WorkNow API')
@@ -66,7 +82,11 @@ async function bootstrap() {
   
   // Add server URL for production to handle reverse proxy
   if (isProduction) {
-    config.addServer(`${backendBaseUrl}/backend`, 'Production Server');
+    // Set server URL with /backend path for API calls
+    config.addServer('/backend', 'Production Server (Same Domain)');
+  } else {
+    // Development server
+    config.addServer('http://localhost:3000', 'Development Server');
   }
   
   const swaggerConfig = config.build();
