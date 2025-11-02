@@ -50,11 +50,14 @@ async function bootstrap() {
   
   // Add server URL for production to handle reverse proxy
   const isProduction = process.env.NODE_ENV === 'production';
-  if (isProduction) {
-    // Set server URL with /backend path for API calls
-    config.addServer('/backend', 'Production Server (Same Domain)');
-  } else {
-    // Development server
+  const baseUrl = process.env.BASE_URL || 'https://theworknow.com';
+  
+  // Always add production server (with /backend path)
+  config.addServer(`${baseUrl}/backend`, 'Production Server');
+  config.addServer('/backend', 'Production Server (Relative)');
+  
+  // Add development server only in development
+  if (!isProduction) {
     config.addServer('http://localhost:3000', 'Development Server');
   }
   

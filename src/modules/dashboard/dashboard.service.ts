@@ -203,10 +203,28 @@ export class DashboardService {
     async getSeekerDashboardStats(seekerId: string) {
         const seekerObjectId = new Types.ObjectId(seekerId);
 
-        // Get active jobs count (jobs with status='active')
-        const activeJobs = await this.jobModel.countDocuments({
-            status: JobStatus.active,
+        // Get active jobs count - jobs the seeker has applied to that are still active
+        const applicationsWithActiveJobs = await this.applicationModel
+            .find({
+                appliedBy: seekerObjectId,
+            })
+            .populate({
+                path: 'appliedFor',
+                select: '_id status',
+            })
+            .lean();
+
+        // Count distinct active jobs from applications
+        const activeJobIds = new Set();
+        applicationsWithActiveJobs.forEach((app: any) => {
+            // Check if application has a job and the job is active
+            if (app.appliedFor && 
+                app.appliedFor._id && 
+                app.appliedFor.status === JobStatus.active) {
+                activeJobIds.add(app.appliedFor._id.toString());
+            }
         });
+        const activeJobs = activeJobIds.size;
 
         // Get total applications by this seeker
         const totalApplications = await this.applicationModel.countDocuments({
