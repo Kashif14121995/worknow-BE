@@ -1,4 +1,288 @@
 import { Injectable, Logger } from '@nestjs/common';
+
+// Polyfills for browser APIs required by pdf-parse/pdfjs-dist
+if (typeof global !== 'undefined' && typeof global.DOMMatrix === 'undefined') {
+  // DOMMatrix polyfill
+  global.DOMMatrix = class DOMMatrix {
+    constructor(init?: string | DOMMatrixInit) {
+      if (typeof init === 'string') {
+        const parts = init.split(',');
+        if (parts.length >= 6) {
+          this.a = parseFloat(parts[0]) || 1;
+          this.b = parseFloat(parts[1]) || 0;
+          this.c = parseFloat(parts[2]) || 0;
+          this.d = parseFloat(parts[3]) || 1;
+          this.e = parseFloat(parts[4]) || 0;
+          this.f = parseFloat(parts[5]) || 0;
+        } else {
+          this.a = 1;
+          this.b = 0;
+          this.c = 0;
+          this.d = 1;
+          this.e = 0;
+          this.f = 0;
+        }
+      } else if (init) {
+        this.a = init.a ?? 1;
+        this.b = init.b ?? 0;
+        this.c = init.c ?? 0;
+        this.d = init.d ?? 1;
+        this.e = init.e ?? 0;
+        this.f = init.f ?? 0;
+      } else {
+        this.a = 1;
+        this.b = 0;
+        this.c = 0;
+        this.d = 1;
+        this.e = 0;
+        this.f = 0;
+      }
+    }
+    a: number = 1;
+    b: number = 0;
+    c: number = 0;
+    d: number = 1;
+    e: number = 0;
+    f: number = 0;
+    m11: number = 1;
+    m12: number = 0;
+    m21: number = 0;
+    m22: number = 1;
+    m41: number = 0;
+    m42: number = 0;
+    static fromMatrix(other?: DOMMatrixInit) {
+      return new DOMMatrix(other);
+    }
+    static fromFloat32Array(array32: Float32Array) {
+      if (array32.length >= 6) {
+        return new DOMMatrix({
+          a: array32[0],
+          b: array32[1],
+          c: array32[2],
+          d: array32[3],
+          e: array32[4],
+          f: array32[5],
+        });
+      }
+      return new DOMMatrix();
+    }
+    static fromFloat64Array(array64: Float64Array) {
+      if (array64.length >= 6) {
+        return new DOMMatrix({
+          a: array64[0],
+          b: array64[1],
+          c: array64[2],
+          d: array64[3],
+          e: array64[4],
+          f: array64[5],
+        });
+      }
+      return new DOMMatrix();
+    }
+    invertSelf() {
+      const det = this.a * this.d - this.b * this.c;
+      if (det === 0) return this;
+      const a = this.a;
+      const b = this.b;
+      const c = this.c;
+      const d = this.d;
+      const e = this.e;
+      const f = this.f;
+      this.a = d / det;
+      this.b = -b / det;
+      this.c = -c / det;
+      this.d = a / det;
+      this.e = (c * f - d * e) / det;
+      this.f = (b * e - a * f) / det;
+      return this;
+    }
+    multiplySelf(other: DOMMatrixInit) {
+      const a = this.a;
+      const b = this.b;
+      const c = this.c;
+      const d = this.d;
+      const e = this.e;
+      const f = this.f;
+      this.a = a * (other.a ?? 1) + c * (other.b ?? 0);
+      this.b = b * (other.a ?? 1) + d * (other.b ?? 0);
+      this.c = a * (other.c ?? 0) + c * (other.d ?? 1);
+      this.d = b * (other.c ?? 0) + d * (other.d ?? 1);
+      this.e = a * (other.e ?? 0) + c * (other.f ?? 0) + e;
+      this.f = b * (other.e ?? 0) + d * (other.f ?? 0) + f;
+      return this;
+    }
+    preMultiplySelf(other: DOMMatrixInit) {
+      const a = this.a;
+      const b = this.b;
+      const c = this.c;
+      const d = this.d;
+      const e = this.e;
+      const f = this.f;
+      this.a = (other.a ?? 1) * a + (other.c ?? 0) * b;
+      this.b = (other.b ?? 0) * a + (other.d ?? 1) * b;
+      this.c = (other.a ?? 1) * c + (other.c ?? 0) * d;
+      this.d = (other.b ?? 0) * c + (other.d ?? 1) * d;
+      this.e = (other.a ?? 1) * e + (other.c ?? 0) * f + (other.e ?? 0);
+      this.f = (other.b ?? 0) * e + (other.d ?? 1) * f + (other.f ?? 0);
+      return this;
+    }
+    rotateSelf(angle: number, originX?: number, originY?: number) {
+      const rad = (angle * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const x = originX ?? 0;
+      const y = originY ?? 0;
+      this.translateSelf(x, y);
+      const a = this.a;
+      const b = this.b;
+      const c = this.c;
+      const d = this.d;
+      this.a = a * cos + c * sin;
+      this.b = b * cos + d * sin;
+      this.c = c * cos - a * sin;
+      this.d = d * cos - b * sin;
+      this.translateSelf(-x, -y);
+      return this;
+    }
+    scaleSelf(scaleX: number, scaleY?: number, originX?: number, originY?: number) {
+      const sx = scaleX;
+      const sy = scaleY ?? scaleX;
+      const x = originX ?? 0;
+      const y = originY ?? 0;
+      this.translateSelf(x, y);
+      this.a *= sx;
+      this.b *= sx;
+      this.c *= sy;
+      this.d *= sy;
+      this.translateSelf(-x, -y);
+      return this;
+    }
+    skewXSelf(sx: number) {
+      const tan = Math.tan((sx * Math.PI) / 180);
+      this.a += this.c * tan;
+      this.b += this.d * tan;
+      return this;
+    }
+    skewYSelf(sy: number) {
+      const tan = Math.tan((sy * Math.PI) / 180);
+      this.c += this.a * tan;
+      this.d += this.b * tan;
+      return this;
+    }
+    translateSelf(tx: number, ty: number) {
+      this.e += this.a * tx + this.c * ty;
+      this.f += this.b * tx + this.d * ty;
+      return this;
+    }
+    setMatrixValue(transformList: string) {
+      // Simplified implementation
+      const parts = transformList.split(',');
+      if (parts.length >= 6) {
+        this.a = parseFloat(parts[0]) || 1;
+        this.b = parseFloat(parts[1]) || 0;
+        this.c = parseFloat(parts[2]) || 0;
+        this.d = parseFloat(parts[3]) || 1;
+        this.e = parseFloat(parts[4]) || 0;
+        this.f = parseFloat(parts[5]) || 0;
+      }
+      return this;
+    }
+  } as any;
+}
+
+if (typeof global !== 'undefined' && typeof global.ImageData === 'undefined') {
+  // ImageData polyfill
+  global.ImageData = class ImageData {
+    constructor(data: Uint8ClampedArray | number, widthOrHeight?: number, height?: number) {
+      if (data instanceof Uint8ClampedArray) {
+        this.data = data;
+        this.width = widthOrHeight!;
+        this.height = height!;
+      } else {
+        const size = data * (widthOrHeight || 1) * 4;
+        this.data = new Uint8ClampedArray(size);
+        this.width = data;
+        this.height = widthOrHeight || 1;
+      }
+    }
+    data: Uint8ClampedArray;
+    width: number;
+    height: number;
+  } as any;
+}
+
+if (typeof global !== 'undefined' && typeof global.Path2D === 'undefined') {
+  // Path2D polyfill - minimal implementation
+  global.Path2D = class Path2D {
+    constructor(path?: string | Path2D) {
+      // Minimal implementation - most methods can be no-ops for text extraction
+    }
+    addPath(path: Path2D, transform?: DOMMatrix2DInit): void {
+      // No-op
+    }
+    arc(
+      x: number,
+      y: number,
+      radius: number,
+      startAngle: number,
+      endAngle: number,
+      counterclockwise?: boolean,
+    ): void {
+      // No-op
+    }
+    arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void {
+      // No-op
+    }
+    bezierCurveTo(
+      cp1x: number,
+      cp1y: number,
+      cp2x: number,
+      cp2y: number,
+      x: number,
+      y: number,
+    ): void {
+      // No-op
+    }
+    closePath(): void {
+      // No-op
+    }
+    ellipse(
+      x: number,
+      y: number,
+      radiusX: number,
+      radiusY: number,
+      rotation: number,
+      startAngle: number,
+      endAngle: number,
+      counterclockwise?: boolean,
+    ): void {
+      // No-op
+    }
+    lineTo(x: number, y: number): void {
+      // No-op
+    }
+    moveTo(x: number, y: number): void {
+      // No-op
+    }
+    quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void {
+      // No-op
+    }
+    rect(x: number, y: number, w: number, h: number): void {
+      // No-op
+    }
+    roundRect(
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      radii?: number | DOMPointInit | (number | DOMPointInit)[],
+    ): void {
+      // No-op
+    }
+  } as any;
+}
+
+// Now require pdf-parse after polyfills are in place
 const pdfParse = require('pdf-parse');
 
 @Injectable()
