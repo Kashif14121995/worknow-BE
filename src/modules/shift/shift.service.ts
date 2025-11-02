@@ -425,6 +425,8 @@ export class ShiftService {
   // Job Seeker Shift Management Methods
   async getSeekerShiftDetails(shiftId: string, seekerId: string) {
     const seekerObjectId = new Types.ObjectId(seekerId);
+    
+    // First, try to find as an actual shift
     const shift = await this.shiftModel
       .findOne({
         _id: shiftId,
@@ -444,11 +446,65 @@ export class ShiftService {
       })
       .lean();
 
-    if (!shift) {
-      throw new NotFoundException('Shift not found or you are not assigned to this shift');
+    if (shift) {
+      return shift;
     }
 
-    return shift;
+    // If not found as shift, check if it's an application ID
+    // This handles the case when status is "applied" or "shortlisted"
+    const application = await this.jobApplyingModel
+      .findOne({
+        _id: shiftId,
+        appliedBy: seekerObjectId, // Ensure seeker is the applicant
+      })
+      .populate({
+        path: 'appliedFor',
+        select: 'jobTitle jobId jobType industry description amount workLocation paymentType shiftDuration shiftStartsAt shiftEndsAt',
+      })
+      .populate({
+        path: 'appliedFor',
+        populate: {
+          path: 'postedBy',
+          select: 'first_name last_name email phone_number',
+        },
+      })
+      .lean();
+
+    if (application) {
+      // Return in shift-like format for frontend compatibility
+      const job = application.appliedFor as any;
+      const employer = job?.postedBy || {};
+      
+      return {
+        _id: application._id,
+        jobId: {
+          _id: job?._id,
+          jobTitle: job?.jobTitle,
+          jobId: job?.jobId,
+          jobType: job?.jobType,
+          industry: job?.industry,
+          description: job?.description,
+          amount: job?.amount,
+          workLocation: job?.workLocation,
+          paymentType: job?.paymentType,
+          shiftDuration: job?.shiftDuration,
+        },
+        createdBy: employer,
+        startDate: job?.shiftStartsAt || null,
+        endDate: job?.shiftEndsAt || null,
+        startTime: null, // Not available in job posting
+        endTime: null, // Not available in job posting
+        status: application.status, // 'applied' or 'shortlisted'
+        assignees: [],
+        location: job?.workLocation || null,
+        notes: null,
+        breakMinutes: null,
+        isApplication: true, // Flag to indicate this is an application, not a shift
+        applicationStatus: application.status,
+      };
+    }
+
+    throw new NotFoundException('Shift or application not found or you are not authorized to view it');
   }
 
   async cancelSeekerShift(shiftId: string, seekerId: string) {

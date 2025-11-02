@@ -27,47 +27,6 @@ async function bootstrap() {
   // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // CORS Configuration - same domain setup (frontend and backend on same domain)
-  const isProduction = process.env.NODE_ENV === 'production';
-  const backendBaseUrl = process.env.BASE_URL || 'https://theworknow.com';
-  
-  // In production, allow same origin (frontend and backend on same domain)
-  // In development, allow localhost origins
-  const allowedOrigins = isProduction 
-    ? [backendBaseUrl] // Same domain - frontend and backend share the origin
-    : ['http://localhost:3000', 'http://localhost:3001'];
-
-  app.enableCors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, Postman)
-      if (!origin) return callback(null, true);
-      
-      // In production, allow same domain origin
-      if (isProduction) {
-        // Extract the origin from the request (without path)
-        const requestOrigin = origin.replace(/\/+$/, ''); // Remove trailing slashes
-        const baseOrigin = backendBaseUrl.replace(/\/+$/, ''); // Remove trailing slashes
-        
-        if (requestOrigin === baseOrigin || allowedOrigins.some(allowed => origin === allowed)) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      } else {
-        // Development: allow localhost origins
-        if (allowedOrigins.indexOf(origin) !== -1) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      }
-    },
-    credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Authorization'],
-  });
-
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -81,6 +40,7 @@ async function bootstrap() {
     .addBearerAuth();
   
   // Add server URL for production to handle reverse proxy
+  const isProduction = process.env.NODE_ENV === 'production';
   if (isProduction) {
     // Set server URL with /backend path for API calls
     config.addServer('/backend', 'Production Server (Same Domain)');
