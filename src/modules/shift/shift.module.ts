@@ -4,7 +4,8 @@ import { ShiftService } from './shift.service';
 import { ShiftController } from './shift.controller';
 import { JwtService } from '@nestjs/jwt';
 import { HttpStatusCodesService } from '../http_status_codes/http_status_codes.service';
-import { Counter, CounterSchema, JobApplying, JobApplyingSchema, JobPosting, JobPostingSchema, Shift, ShiftSchema } from 'src/schemas';
+import { MailModule } from '../mail/mail.module';
+import { Counter, CounterSchema, JobApplying, JobApplyingSchema, JobPosting, JobPostingSchema, Shift, ShiftSchema, User, UserSchema } from 'src/schemas';
 
 @Module({
   imports: [
@@ -13,7 +14,9 @@ import { Counter, CounterSchema, JobApplying, JobApplyingSchema, JobPosting, Job
       { name: JobPosting.name, schema: JobPostingSchema },
       { name: JobApplying.name, schema: JobApplyingSchema },
       { name: Counter.name, schema: CounterSchema },
+      { name: User.name, schema: UserSchema },
     ]),
+    MailModule,
   ],
   controllers: [ShiftController],
   providers: [ShiftService, JwtService, HttpStatusCodesService],

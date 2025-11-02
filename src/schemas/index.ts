@@ -3,3 +3,6 @@ export * from './contact-us.schema';
 export * from "./job.schema"
 export * from "./counter.schema"
 export * from "./shift.schema"
+export * from "./message.schema"
+export * from "./payment.schema"
+export * from "./rating.schema"

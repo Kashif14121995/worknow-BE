@@ -9,7 +9,7 @@ import { CreateJobListingDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { Model, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
-import { JobStatus } from 'src/constants';
+import { JobStatus, JobApplicationAppliedStatus } from 'src/constants';
 import * as moment from 'moment';
 import { User, JobApplying, JobPosting, Shift } from 'src/schemas';
 
@@ -22,7 +22,7 @@ export class JobsService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) { }
   async create(CreateJobListingDto: CreateJobListingDto, userId: string) {
-    return await this.jobPostingModel.create({
+    const job = await this.jobPostingModel.create({
       ...CreateJobListingDto,
       postedBy: userId,
       status:
@@ -30,6 +30,28 @@ export class JobsService {
           ? JobStatus.draft
           : JobStatus.active, // Default status when creating a job
     });
+
+    // Send email notification if job is active
+    if (job.status === JobStatus.active) {
+      try {
+        const provider = await this.userModel.findById(userId);
+        if (provider) {
+          await this.mailService.sendJobPostedEmail({
+            providerEmail: provider.email,
+            providerName: `${provider.first_name} ${provider.last_name}`,
+            jobTitle: job.jobTitle,
+            jobId: job.jobId,
+            jobLocation: job.workLocation,
+            postedDate: new Date(job.createdAt).toLocaleDateString(),
+          });
+        }
+      } catch (error) {
+        console.error('Error sending job posted email:', error);
+        // Don't throw error, just log it
+      }
+    }
+
+    return job;
   }
 
   async applyForJob(jobId: string, userId: string) {
@@ -126,7 +148,22 @@ export class JobsService {
       appliedFor: jobId,
     });
 
-    // 🔔 Optional: trigger notification to provider here
+    // Send email notification to provider
+    try {
+      const provider = await this.userModel.findById(job.postedBy);
+      if (provider) {
+        await this.mailService.sendApplicationReceivedEmail({
+          providerEmail: provider.email,
+          providerName: `${provider.first_name} ${provider.last_name}`,
+          seekerName: `${user.first_name} ${user.last_name}`,
+          jobTitle: job.jobTitle,
+          appliedDate: new Date(application.createdAt).toLocaleDateString(),
+        });
+      }
+    } catch (error) {
+      console.error('Error sending application received email:', error);
+      // Don't throw error, just log it
+    }
 
     return application;
   }
@@ -478,6 +515,150 @@ export class JobsService {
     await job.save();
 
     return job;
+  }
+
+  async approveApplication(applicationId: string, providerId: string): Promise<JobApplying> {
+    const application = await this.jobApplyingModel.findById(applicationId).populate('appliedFor');
+    
+    if (!application) {
+      throw new NotFoundException('Application not found');
+    }
+
+    const job = application.appliedFor as any;
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    // Verify the provider owns this job
+    if (job.postedBy.toString() !== providerId) {
+      throw new ForbiddenException('You do not have permission to approve this application');
+    }
+
+    // Update application status to shortlisted
+    application.status = JobApplicationAppliedStatus.shortlisted;
+    await application.save();
+
+    const populatedApp = await application.populate([
+      { path: 'appliedBy', select: 'first_name last_name email' },
+      { path: 'appliedFor', select: 'jobTitle jobId workLocation' },
+    ]);
+
+    // Send email notification to seeker
+    try {
+      const seeker = populatedApp.appliedBy as any;
+      const jobData = populatedApp.appliedFor as any;
+      const provider = await this.userModel.findById(providerId);
+
+      if (seeker && jobData && provider) {
+        await this.mailService.sendApplicationShortlistedEmail({
+          seekerEmail: seeker.email,
+          seekerName: `${seeker.first_name} ${seeker.last_name}`,
+          providerName: `${provider.first_name} ${provider.last_name}`,
+          jobTitle: jobData.jobTitle,
+          jobLocation: jobData.workLocation || 'N/A',
+        });
+      }
+    } catch (error) {
+      console.error('Error sending shortlisted email:', error);
+    }
+
+    return populatedApp;
+  }
+
+  async rejectApplication(applicationId: string, providerId: string): Promise<JobApplying> {
+    const application = await this.jobApplyingModel.findById(applicationId).populate('appliedFor');
+    
+    if (!application) {
+      throw new NotFoundException('Application not found');
+    }
+
+    const job = application.appliedFor as any;
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    // Verify the provider owns this job
+    if (job.postedBy.toString() !== providerId) {
+      throw new ForbiddenException('You do not have permission to reject this application');
+    }
+
+    // Update application status to rejected
+    application.status = JobApplicationAppliedStatus.rejected;
+    await application.save();
+
+    const populatedApp = await application.populate([
+      { path: 'appliedBy', select: 'first_name last_name email' },
+      { path: 'appliedFor', select: 'jobTitle jobId' },
+    ]);
+
+    // Send email notification to seeker
+    try {
+      const seeker = populatedApp.appliedBy as any;
+      const jobData = populatedApp.appliedFor as any;
+      const provider = await this.userModel.findById(providerId);
+
+      if (seeker && jobData && provider) {
+        await this.mailService.sendApplicationRejectedEmail({
+          seekerEmail: seeker.email,
+          seekerName: `${seeker.first_name} ${seeker.last_name}`,
+          providerName: `${provider.first_name} ${provider.last_name}`,
+          jobTitle: jobData.jobTitle,
+        });
+      }
+    } catch (error) {
+      console.error('Error sending rejected email:', error);
+    }
+
+    return populatedApp;
+  }
+
+  async hireApplication(applicationId: string, providerId: string): Promise<JobApplying> {
+    const application = await this.jobApplyingModel.findById(applicationId).populate('appliedFor');
+    
+    if (!application) {
+      throw new NotFoundException('Application not found');
+    }
+
+    const job = application.appliedFor as any;
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    // Verify the provider owns this job
+    if (job.postedBy.toString() !== providerId) {
+      throw new ForbiddenException('You do not have permission to hire this applicant');
+    }
+
+    // Update application status to hired
+    application.status = JobApplicationAppliedStatus.hired;
+    await application.save();
+
+    const populatedApp = await application.populate([
+      { path: 'appliedBy', select: 'first_name last_name email' },
+      { path: 'appliedFor', select: 'jobTitle jobId workLocation' },
+    ]);
+
+    // Send email notification to seeker
+    try {
+      const seeker = populatedApp.appliedBy as any;
+      const jobData = populatedApp.appliedFor as any;
+      const provider = await this.userModel.findById(providerId);
+
+      if (seeker && jobData && provider) {
+        await this.mailService.sendApplicationHiredEmail({
+          seekerEmail: seeker.email,
+          seekerName: `${seeker.first_name} ${seeker.last_name}`,
+          providerName: `${provider.first_name} ${provider.last_name}`,
+          jobTitle: jobData.jobTitle,
+          jobLocation: jobData.workLocation || 'N/A',
+          shiftDetails: 'Details will be provided by employer',
+        });
+      }
+    } catch (error) {
+      console.error('Error sending hired email:', error);
+    }
+
+    return populatedApp;
   }
 
   async update(jobId: string, payload: UpdateJobDto): Promise<JobPosting> {

@@ -529,4 +529,127 @@ export class JobsController {
     return this.jobsService.findOne(id);
   }
 
+  @Post('/applications/:applicationId/approve')
+  @ApiOperation({ summary: 'Approve/Shortlist an application (checkmark button)' })
+  @ApiParam({ name: 'applicationId', description: 'Application ID to approve' })
+  @ApiResponse({ status: 200, description: 'Application approved successfully' })
+  async approveApplication(
+    @Param('applicationId') applicationId: string,
+    @Req() request: Request,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const providerId = request.user.id;
+      const role = request.user.role;
+
+      if (role !== 'job_provider') {
+        return res.status(this.http.STATUS_UNAUTHORIZED).json(
+          new ErrorResponse(
+            this.http.STATUS_UNAUTHORIZED,
+            'Access restricted to job providers',
+            'Only job providers can approve applications',
+          ),
+        );
+      }
+
+      const data = await this.jobsService.approveApplication(applicationId, providerId);
+      return res.status(this.http.STATUS_OK).json(
+        new SuccessResponse(
+          data,
+          UPDATE_SUCCESS.replace('{{entity}}', 'application'),
+        ),
+      );
+    } catch (error) {
+      return res.status(this.http.STATUS_INTERNAL_SERVER_ERROR).json(
+        new ErrorResponse(
+          this.http.STATUS_INTERNAL_SERVER_ERROR,
+          'Error approving application',
+          error.message,
+        ),
+      );
+    }
+  }
+
+  @Post('/applications/:applicationId/reject')
+  @ApiOperation({ summary: 'Reject an application (X button)' })
+  @ApiParam({ name: 'applicationId', description: 'Application ID to reject' })
+  @ApiResponse({ status: 200, description: 'Application rejected successfully' })
+  async rejectApplication(
+    @Param('applicationId') applicationId: string,
+    @Req() request: Request,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const providerId = request.user.id;
+      const role = request.user.role;
+
+      if (role !== 'job_provider') {
+        return res.status(this.http.STATUS_UNAUTHORIZED).json(
+          new ErrorResponse(
+            this.http.STATUS_UNAUTHORIZED,
+            'Access restricted to job providers',
+            'Only job providers can reject applications',
+          ),
+        );
+      }
+
+      const data = await this.jobsService.rejectApplication(applicationId, providerId);
+      return res.status(this.http.STATUS_OK).json(
+        new SuccessResponse(
+          data,
+          UPDATE_SUCCESS.replace('{{entity}}', 'application'),
+        ),
+      );
+    } catch (error) {
+      return res.status(this.http.STATUS_INTERNAL_SERVER_ERROR).json(
+        new ErrorResponse(
+          this.http.STATUS_INTERNAL_SERVER_ERROR,
+          'Error rejecting application',
+          error.message,
+        ),
+      );
+    }
+  }
+
+  @Post('/applications/:applicationId/hire')
+  @ApiOperation({ summary: 'Hire an applicant (final confirmation)' })
+  @ApiParam({ name: 'applicationId', description: 'Application ID to hire' })
+  @ApiResponse({ status: 200, description: 'Applicant hired successfully' })
+  async hireApplication(
+    @Param('applicationId') applicationId: string,
+    @Req() request: Request,
+    @Res() res: Response,
+  ): APIResponse {
+    try {
+      const providerId = request.user.id;
+      const role = request.user.role;
+
+      if (role !== 'job_provider') {
+        return res.status(this.http.STATUS_UNAUTHORIZED).json(
+          new ErrorResponse(
+            this.http.STATUS_UNAUTHORIZED,
+            'Access restricted to job providers',
+            'Only job providers can hire applicants',
+          ),
+        );
+      }
+
+      const data = await this.jobsService.hireApplication(applicationId, providerId);
+      return res.status(this.http.STATUS_OK).json(
+        new SuccessResponse(
+          data,
+          UPDATE_SUCCESS.replace('{{entity}}', 'application'),
+        ),
+      );
+    } catch (error) {
+      return res.status(this.http.STATUS_INTERNAL_SERVER_ERROR).json(
+        new ErrorResponse(
+          this.http.STATUS_INTERNAL_SERVER_ERROR,
+          'Error hiring applicant',
+          error.message,
+        ),
+      );
+    }
+  }
+
 }

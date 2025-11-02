@@ -18,6 +18,9 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { ContactUsModule } from './modules/contact-us/contact-us.module';
 import { ShiftModule } from './modules/shift/shift.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { MessageModule } from './modules/message/message.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { RatingModule } from './modules/rating/rating.module';
 
 @Module({
   imports: [
@@ -53,6 +56,9 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     ContactUsModule,
     ShiftModule,
     DashboardModule,
+    MessageModule,
+    PaymentModule,
+    RatingModule,
   ],
   controllers: [AppController],
   providers: [AppService, BcryptService, HttpStatusCodesService],

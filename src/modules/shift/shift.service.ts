@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Shift, ShiftDocument, JobApplying, JobPosting } from 'src/schemas';
+import { Shift, ShiftDocument, JobApplying, JobPosting, User } from 'src/schemas';
 import { CreateShiftDto } from './dto/create-shift.dto/create-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto/update-shift.dto';
 import { AssignShiftDto } from './dto/assign-shift.dto/assign-shift.dto';
+import { JobApplicationAppliedStatus } from 'src/constants';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class ShiftService {
@@ -12,6 +14,8 @@ export class ShiftService {
     @InjectModel(Shift.name) private shiftModel: Model<ShiftDocument>,
     @InjectModel(JobPosting.name) private jobPostingModel: Model<JobPosting>,
     @InjectModel(JobApplying.name) private jobApplyingModel: Model<JobApplying>,
+    @InjectModel(User.name) private userModel: Model<User>,
+    private readonly mailService: MailService,
   ) { }
 
   async create(dto: CreateShiftDto, userId: string) {
@@ -67,7 +71,30 @@ export class ShiftService {
         createdBy: new Types.ObjectId(userId),
       });
 
-      return shift.save();
+      const savedShift = await shift.save();
+
+      // Send email notification to assigned seeker
+      try {
+        const assignee = await this.userModel.findById(assigneeId);
+        const provider = await this.userModel.findById(userId);
+        if (assignee && provider && job) {
+          await this.mailService.sendShiftAssignedEmail({
+            seekerEmail: assignee.email,
+            seekerName: `${assignee.first_name} ${assignee.last_name}`,
+            providerName: `${provider.first_name} ${provider.last_name}`,
+            jobTitle: job.jobTitle,
+            startDate: new Date(startDate).toLocaleDateString(),
+            startTime,
+            endDate: new Date(endDate).toLocaleDateString(),
+            endTime,
+            location: job.workLocation || 'N/A',
+          });
+        }
+      } catch (error) {
+        console.error('Error sending shift assigned email:', error);
+      }
+
+      return savedShift;
     } catch (error) {
       console.error('❌ Error creating shift:', error);
       throw new Error(error.message || 'Failed to create shift');
@@ -122,8 +149,12 @@ export class ShiftService {
   }
 
   async assignAssignees(shiftId: string, dto: AssignShiftDto) {
-    const shift = await this.shiftModel.findById(shiftId);
+    const shift = await this.shiftModel.findById(shiftId).populate('jobId').populate('createdBy');
     if (!shift) throw new NotFoundException('Shift not found');
+
+    // Get newly added assignees
+    const existingAssigneeIds = shift.assignees.map((id) => id.toString());
+    const newAssignees = dto.assigneeIds.filter(id => !existingAssigneeIds.includes(id));
 
     // Add unique assignees without duplicates
     const updatedAssignees = Array.from(
@@ -135,6 +166,33 @@ export class ShiftService {
 
     shift.assignees = updatedAssignees;
     await shift.save();
+
+    // Send email notifications to newly assigned seekers
+    if (newAssignees.length > 0) {
+      try {
+        const job = shift.jobId as any;
+        const provider = shift.createdBy as any;
+        
+        for (const assigneeId of newAssignees) {
+          const assignee = await this.userModel.findById(assigneeId);
+          if (assignee && provider && job) {
+            await this.mailService.sendShiftAssignedEmail({
+              seekerEmail: assignee.email,
+              seekerName: `${assignee.first_name} ${assignee.last_name}`,
+              providerName: `${provider.first_name} ${provider.last_name}`,
+              jobTitle: job.jobTitle || 'N/A',
+              startDate: new Date(shift.startDate).toLocaleDateString(),
+              startTime: shift.startTime,
+              endDate: new Date(shift.endDate).toLocaleDateString(),
+              endTime: shift.endTime,
+              location: job.workLocation || 'N/A',
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error sending shift assigned emails:', error);
+      }
+    }
 
     return shift;
   }
@@ -150,5 +208,290 @@ export class ShiftService {
     await shift.save();
 
     return shift;
+  }
+
+  // Job Seeker Shift Management
+  async getSeekerShifts(
+    seekerId: string,
+    status: 'upcoming' | 'applied' | 'shortlisted' | 'completed',
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    const skip = (page - 1) * limit;
+    const seekerObjectId = new Types.ObjectId(seekerId);
+    const today = new Date();
+
+    let shifts: any[] = [];
+
+    if (status === 'upcoming') {
+      // Get shifts assigned to seeker that are upcoming
+      shifts = await this.shiftModel
+        .find({
+          assignees: seekerObjectId,
+          startDate: { $gte: today },
+          status: { $in: ['open', 'filled'] },
+        })
+        .populate({
+          path: 'jobId',
+          select: 'jobTitle amount workLocation',
+        })
+        .populate({
+          path: 'createdBy',
+          select: 'first_name last_name',
+        })
+        .sort({ startDate: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+    } else if (status === 'applied') {
+      // Get jobs the seeker has applied to but not yet shortlisted/hired
+      const applications = await this.jobApplyingModel
+        .find({
+          appliedBy: seekerObjectId,
+          status: JobApplicationAppliedStatus.applied,
+        })
+        .populate({
+          path: 'appliedFor',
+          select: 'jobTitle shiftStartsAt shiftEndsAt amount workLocation',
+        })
+        .populate({
+          path: 'appliedFor',
+          populate: {
+            path: 'postedBy',
+            select: 'first_name last_name',
+          },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      shifts = applications.map((app: any) => ({
+        _id: app._id,
+        jobId: app.appliedFor,
+        createdBy: app.appliedFor?.postedBy,
+        startDate: app.appliedFor?.shiftStartsAt,
+        endDate: app.appliedFor?.shiftEndsAt,
+        status: 'applied',
+        applicationStatus: app.status,
+      }));
+    } else if (status === 'shortlisted') {
+      // Get jobs where seeker is shortlisted
+      const applications = await this.jobApplyingModel
+        .find({
+          appliedBy: seekerObjectId,
+          status: JobApplicationAppliedStatus.shortlisted,
+        })
+        .populate({
+          path: 'appliedFor',
+          select: 'jobTitle shiftStartsAt shiftEndsAt amount workLocation',
+        })
+        .populate({
+          path: 'appliedFor',
+          populate: {
+            path: 'postedBy',
+            select: 'first_name last_name',
+          },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      shifts = applications.map((app: any) => ({
+        _id: app._id,
+        jobId: app.appliedFor,
+        createdBy: app.appliedFor?.postedBy,
+        startDate: app.appliedFor?.shiftStartsAt,
+        endDate: app.appliedFor?.shiftEndsAt,
+        status: 'shortlisted',
+        applicationStatus: app.status,
+      }));
+    } else if (status === 'completed') {
+      // Get completed shifts (assigned shifts where endDate < today)
+      shifts = await this.shiftModel
+        .find({
+          assignees: seekerObjectId,
+          endDate: { $lt: today },
+          status: 'filled',
+        })
+        .populate({
+          path: 'jobId',
+          select: 'jobTitle amount workLocation',
+        })
+        .populate({
+          path: 'createdBy',
+          select: 'first_name last_name',
+        })
+        .sort({ endDate: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+    }
+
+    // Format shifts similar to screenshot
+    const formattedShifts = shifts.map((shift: any) => {
+      const job = shift.jobId || shift;
+      const employer = shift.createdBy || (shift.appliedFor?.postedBy || {});
+      
+      return {
+        id: shift._id?.toString() || shift._id,
+        jobTitle: job?.jobTitle || job?.jobTitle || 'N/A',
+        employer: employer?.first_name && employer?.last_name 
+          ? `${employer.first_name} ${employer.last_name}` 
+          : 'N/A',
+        date: shift.startDate 
+          ? new Date(shift.startDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+          : job?.shiftStartsAt 
+            ? new Date(job.shiftStartsAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+            : null,
+        time: shift.startTime && shift.endTime
+          ? `${shift.startTime} - ${shift.endTime}`
+          : null,
+        pay: job?.amount || null,
+        location: job?.workLocation || job?.workLocation || null,
+        status: status === 'upcoming' || status === 'completed' ? 'Confirmed' : status,
+      };
+    });
+
+    const total = await this.getSeekerShiftsCount(seekerId, status);
+
+    return {
+      shifts: formattedShifts,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  private async getSeekerShiftsCount(
+    seekerId: string,
+    status: 'upcoming' | 'applied' | 'shortlisted' | 'completed',
+  ): Promise<number> {
+    const seekerObjectId = new Types.ObjectId(seekerId);
+    const today = new Date();
+
+    if (status === 'upcoming') {
+      return this.shiftModel.countDocuments({
+        assignees: seekerObjectId,
+        startDate: { $gte: today },
+        status: { $in: ['open', 'filled'] },
+      });
+    } else if (status === 'applied') {
+      return this.jobApplyingModel.countDocuments({
+        appliedBy: seekerObjectId,
+        status: JobApplicationAppliedStatus.applied,
+      });
+    } else if (status === 'shortlisted') {
+      return this.jobApplyingModel.countDocuments({
+        appliedBy: seekerObjectId,
+        status: JobApplicationAppliedStatus.shortlisted,
+      });
+    } else if (status === 'completed') {
+      return this.shiftModel.countDocuments({
+        assignees: seekerObjectId,
+        endDate: { $lt: today },
+        status: 'filled',
+      });
+    }
+    return 0;
+  }
+
+  // Job Seeker Shift Management Methods
+  async getSeekerShiftDetails(shiftId: string, seekerId: string) {
+    const seekerObjectId = new Types.ObjectId(seekerId);
+    const shift = await this.shiftModel
+      .findOne({
+        _id: shiftId,
+        assignees: seekerObjectId, // Ensure seeker is assigned to this shift
+      })
+      .populate({
+        path: 'jobId',
+        select: 'jobTitle jobId jobType industry description amount workLocation paymentType shiftDuration',
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'first_name last_name email phone_number',
+      })
+      .populate({
+        path: 'assignees',
+        select: 'first_name last_name email',
+      })
+      .lean();
+
+    if (!shift) {
+      throw new NotFoundException('Shift not found or you are not assigned to this shift');
+    }
+
+    return shift;
+  }
+
+  async cancelSeekerShift(shiftId: string, seekerId: string) {
+    const seekerObjectId = new Types.ObjectId(seekerId);
+    const shift = await this.shiftModel.findById(shiftId);
+
+    if (!shift) {
+      throw new NotFoundException('Shift not found');
+    }
+
+    // Check if seeker is assigned to this shift
+    const isAssigned = shift.assignees.some(
+      (id) => id.toString() === seekerId,
+    );
+
+    if (!isAssigned) {
+      throw new NotFoundException('You are not assigned to this shift');
+    }
+
+    // Check if shift has already started
+    const today = new Date();
+    if (shift.startDate < today) {
+      throw new Error('Cannot cancel a shift that has already started');
+    }
+
+    // Remove seeker from assignees
+    shift.assignees = shift.assignees.filter(
+      (id) => id.toString() !== seekerId,
+    );
+
+    // If no more assignees, update status to open
+    if (shift.assignees.length === 0) {
+      shift.status = 'open';
+    }
+
+    await shift.save();
+
+    return {
+      message: 'Shift cancelled successfully',
+      shift: await this.shiftModel.findById(shiftId).populate([
+        { path: 'jobId', select: 'jobTitle jobId' },
+        { path: 'createdBy', select: 'first_name last_name' },
+      ]),
+    };
+  }
+
+  async getShiftEmployerContact(shiftId: string, seekerId: string) {
+    const seekerObjectId = new Types.ObjectId(seekerId);
+    const shift = await this.shiftModel
+      .findOne({
+        _id: shiftId,
+        assignees: seekerObjectId,
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'first_name last_name email phone_number _id',
+      })
+      .lean();
+
+    if (!shift) {
+      throw new NotFoundException('Shift not found or you are not assigned to this shift');
+    }
+
+    return {
+      employer: shift.createdBy,
+      shiftId: shift._id,
+      jobId: shift.jobId,
+    };
   }
 }

@@ -5,6 +5,7 @@ import { JobsController } from './jobs.controller';
 import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
+import { MailModule } from '../mail/mail.module';
 import {
   User, UserSchema,
   Shift, ShiftSchema,
@@ -22,6 +23,7 @@ import {
       { name: Shift.name, schema: ShiftSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    MailModule,
   ],
   controllers: [JobsController],
   providers: [JobsService, JwtService, HttpStatusCodesService],
