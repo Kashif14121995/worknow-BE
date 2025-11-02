@@ -22,6 +22,7 @@ export class MessageService {
       message: dto.message,
       jobId: dto.jobId ? new Types.ObjectId(dto.jobId) : undefined,
       applicationId: dto.applicationId ? new Types.ObjectId(dto.applicationId) : undefined,
+      attachments: dto.attachments || [],
       read: false,
     });
 

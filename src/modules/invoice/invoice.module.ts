@@ -39,7 +39,7 @@ import { AwsModule } from '../aws/aws.module';
   ],
   controllers: [InvoiceController],
   providers: [InvoiceService, InvoicePdfService, HttpStatusCodesService],
-  exports: [InvoiceService],
+  exports: [InvoiceService, InvoicePdfService],
 })
 export class InvoiceModule {}
 

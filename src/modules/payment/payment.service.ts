@@ -218,6 +218,74 @@ export class PaymentService {
     return transaction;
   }
 
+  /**
+   * Process a payment (generic method for featured listings, subscriptions, etc.)
+   */
+  async processPayment(data: {
+    userId: string;
+    amount: number;
+    description: string;
+    paymentMethodId: string;
+    metadata?: Record<string, any>;
+  }): Promise<Transaction> {
+    const user = await this.userModel.findById(data.userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const wallet = await this.getWalletBalance(data.userId);
+
+    // Create payment intent with Stripe
+    const paymentIntent = await this.stripeService.createPaymentIntent(
+      data.amount * 100, // Convert to cents
+      'USD',
+      wallet.stripeCustomerId,
+    );
+
+    // Generate transaction ID
+    const counter = await this.counterModel.findOneAndUpdate(
+      { id: 'transactionId' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true },
+    );
+
+    const transactionId = `TXN_${String(counter.seq).padStart(6, '0')}`;
+
+    // Create transaction record
+    const transaction = await this.transactionModel.create({
+      transactionId,
+      fromUserId: new Types.ObjectId(data.userId),
+      amount: data.amount,
+      currency: 'USD',
+      status: TransactionStatus.PROCESSING,
+      type: PaymentTypeEnum.PLATFORM_FEE,
+      description: data.description,
+      stripeTransactionId: paymentIntent.id,
+      metadata: data.metadata,
+    });
+
+    // Confirm payment with Stripe (simplified - in production, use webhooks)
+    try {
+      // For now, mark as completed (in production, wait for webhook confirmation)
+      transaction.status = TransactionStatus.COMPLETED;
+      await transaction.save();
+
+      // Update wallet if needed
+      const walletDoc = wallet as any;
+      walletDoc.totalSpent += data.amount;
+      await this.walletModel.findByIdAndUpdate(walletDoc._id || walletDoc.id, {
+        totalSpent: walletDoc.totalSpent,
+      });
+
+    } catch (error) {
+      transaction.status = TransactionStatus.FAILED;
+      await transaction.save();
+      throw new Error(`Payment processing failed: ${error.message}`);
+    }
+
+    return transaction;
+  }
+
   // Seeker: Withdraw earnings
   async withdrawEarnings(userId: string, amount: number, accountDetails: any): Promise<Transaction> {
     const user = await this.userModel.findById(userId);

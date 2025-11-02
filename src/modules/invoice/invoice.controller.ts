@@ -36,6 +36,10 @@ export class InvoiceController {
     private readonly http: HttpStatusCodesService,
   ) {}
 
+  // ============================================
+  // INVOICE CRUD OPERATIONS
+  // ============================================
+
   @Post()
   @ApiOperation({ summary: 'Create a new invoice' })
   @ApiBody({ type: CreateInvoiceDto })
@@ -95,38 +99,8 @@ export class InvoiceController {
     }
   }
 
-  @Get(':invoiceId')
-  @ApiOperation({ summary: 'Get invoice by ID' })
-  @ApiParam({ name: 'invoiceId', description: 'Invoice ID or invoiceId' })
-  @ApiResponse({ status: 200, description: 'Invoice fetched successfully' })
-  async getInvoice(
-    @Param('invoiceId') invoiceId: string,
-    @Req() request: Request,
-    @Res() res: Response,
-  ) {
-    try {
-      const userId = request.user.id;
-      const invoice = await this.invoiceService.getInvoiceById(invoiceId, userId);
-
-      return res.status(this.http.STATUS_OK).json(
-        new SuccessResponse(
-          invoice,
-          DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'invoice'),
-        ),
-      );
-    } catch (error) {
-      return res.status(this.http.STATUS_INTERNAL_SERVER_ERROR).json(
-        new ErrorResponse(
-          this.http.STATUS_INTERNAL_SERVER_ERROR,
-          'Error fetching invoice',
-          error.message,
-        ),
-      );
-    }
-  }
-
   @Get()
-  @ApiOperation({ summary: 'Get invoices for current user' })
+  @ApiOperation({ summary: 'Get invoices for current user (paginated)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'role', required: false, enum: ['recipient', 'issuer', 'all'], description: 'Filter by user role' })
@@ -167,8 +141,42 @@ export class InvoiceController {
     }
   }
 
-  @Patch(':invoiceId/status')
-  @ApiOperation({ summary: 'Update invoice status' })
+  @Get('/:invoiceId')
+  @ApiOperation({ summary: 'Get invoice by ID' })
+  @ApiParam({ name: 'invoiceId', description: 'Invoice ID or invoiceId' })
+  @ApiResponse({ status: 200, description: 'Invoice fetched successfully' })
+  async getInvoice(
+    @Param('invoiceId') invoiceId: string,
+    @Req() request: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      const userId = request.user.id;
+      const invoice = await this.invoiceService.getInvoiceById(invoiceId, userId);
+
+      return res.status(this.http.STATUS_OK).json(
+        new SuccessResponse(
+          invoice,
+          DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'invoice'),
+        ),
+      );
+    } catch (error) {
+      return res.status(this.http.STATUS_INTERNAL_SERVER_ERROR).json(
+        new ErrorResponse(
+          this.http.STATUS_INTERNAL_SERVER_ERROR,
+          'Error fetching invoice',
+          error.message,
+        ),
+      );
+    }
+  }
+
+  // ============================================
+  // INVOICE STATUS & ACTIONS
+  // ============================================
+
+  @Patch('/:invoiceId/status')
+  @ApiOperation({ summary: 'Update invoice status (can also mark as paid by setting status to PAID)' })
   @ApiParam({ name: 'invoiceId', description: 'Invoice ID' })
   @ApiBody({ schema: { type: 'object', properties: { status: { type: 'string', enum: Object.values(InvoiceStatus) } } } })
   @ApiResponse({ status: 200, description: 'Invoice status updated successfully' })
@@ -199,37 +207,7 @@ export class InvoiceController {
     }
   }
 
-  @Post(':invoiceId/mark-paid')
-  @ApiOperation({ summary: 'Mark invoice as paid' })
-  @ApiParam({ name: 'invoiceId', description: 'Invoice ID' })
-  @ApiResponse({ status: 200, description: 'Invoice marked as paid' })
-  async markInvoiceAsPaid(
-    @Param('invoiceId') invoiceId: string,
-    @Req() request: Request,
-    @Res() res: Response,
-  ) {
-    try {
-      const userId = request.user.id;
-      const invoice = await this.invoiceService.markInvoiceAsPaid(invoiceId, userId);
-
-      return res.status(this.http.STATUS_OK).json(
-        new SuccessResponse(
-          invoice,
-          UPDATE_SUCCESS.replace('{{entity}}', 'invoice'),
-        ),
-      );
-    } catch (error) {
-      return res.status(this.http.STATUS_INTERNAL_SERVER_ERROR).json(
-        new ErrorResponse(
-          this.http.STATUS_INTERNAL_SERVER_ERROR,
-          'Error marking invoice as paid',
-          error.message,
-        ),
-      );
-    }
-  }
-
-  @Post(':invoiceId/send')
+  @Post('/:invoiceId/send')
   @ApiOperation({ summary: 'Send invoice via email' })
   @ApiParam({ name: 'invoiceId', description: 'Invoice ID' })
   @ApiResponse({ status: 200, description: 'Invoice sent successfully' })
@@ -259,7 +237,11 @@ export class InvoiceController {
     }
   }
 
-  @Get(':invoiceId/generate-pdf')
+  // ============================================
+  // INVOICE PDF GENERATION
+  // ============================================
+
+  @Get('/:invoiceId/generate-pdf')
   @ApiOperation({ summary: 'Generate PDF for an invoice' })
   @ApiParam({ name: 'invoiceId', description: 'Invoice ID' })
   @ApiResponse({ status: 200, description: 'PDF generated successfully' })
@@ -303,4 +285,3 @@ export class InvoiceController {
     }
   }
 }
-

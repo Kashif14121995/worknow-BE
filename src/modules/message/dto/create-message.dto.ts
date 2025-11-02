@@ -24,5 +24,10 @@ export class CreateMessageDto {
   @IsOptional()
   @IsMongoId()
   applicationId?: string;
+
+  @ApiPropertyOptional({ description: 'Attachments (array of file URLs)', type: [String] })
+  @IsOptional()
+  @IsString({ each: true })
+  attachments?: string[];
 }
 

@@ -72,6 +72,9 @@ export class User {
 
   @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'JobPosting' }] })
   jobPostings: mongoose.Types.ObjectId[];
+
+  @Prop({ type: String, required: false })
+  stripeCustomerId?: string; // Stripe customer ID for subscriptions
 }
 
 const UserSchema = SchemaFactory.createForClass(User);

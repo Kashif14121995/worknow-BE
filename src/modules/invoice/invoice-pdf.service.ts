@@ -61,6 +61,42 @@ export class InvoicePdfService {
     }
   }
 
+  /**
+   * Generate PDF from HTML (utility method for other services)
+   */
+  async generatePdfFromHtml(html: string): Promise<Buffer> {
+    let browser;
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20px',
+          right: '20px',
+          bottom: '20px',
+          left: '20px',
+        },
+      });
+
+      await browser.close();
+      return pdfBuffer;
+    } catch (error) {
+      this.logger.error(`Error generating PDF from HTML: ${error.message}`, error.stack);
+      if (browser) {
+        await browser.close();
+      }
+      throw error;
+    }
+  }
+
   private generateInvoiceHtml(invoice: any): string {
     const recipient = invoice.issuedTo || {};
     const issuer = invoice.issuedBy || {};

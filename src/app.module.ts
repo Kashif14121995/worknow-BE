@@ -31,10 +31,16 @@ import { ResumeModule } from './modules/resume/resume.module';
 import { BlockingModule } from './modules/blocking/blocking.module';
 import { MatchingModule } from './modules/matching/matching.module';
 import { ShiftAnalyticsModule } from './modules/shift-analytics/shift-analytics.module';
+import { SavedSearchModule } from './modules/saved-search/saved-search.module';
+import { JobAlertsModule } from './modules/job-alerts/job-alerts.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { FeaturedListingModule } from './modules/featured-listing/featured-listing.module';
+import { TaxDocumentModule } from './modules/tax-document/tax-document.module';
 
 @Module({
   imports: [
@@ -88,6 +94,12 @@ import { ScheduleModule } from '@nestjs/schedule';
     BlockingModule,
     MatchingModule,
     ShiftAnalyticsModule,
+    SavedSearchModule,
+    JobAlertsModule,
+    OnboardingModule,
+    SubscriptionModule,
+    FeaturedListingModule,
+    TaxDocumentModule,  
   ],
   controllers: [AppController],
   providers: [

@@ -33,6 +33,10 @@ export class RatingController {
     private readonly http: HttpStatusCodesService,
   ) {}
 
+  // ============================================
+  // RATING CREATION
+  // ============================================
+
   @Post()
   @ApiOperation({ summary: 'Create a new rating/review' })
   @ApiResponse({ status: 201, description: 'Rating created successfully' })
@@ -62,16 +66,25 @@ export class RatingController {
     }
   }
 
+  // ============================================
+  // RATING RETRIEVAL
+  // ============================================
+
   @Get('user/:userId')
-  @ApiOperation({ summary: 'Get ratings for a specific user' })
+  @ApiOperation({ 
+    summary: 'Get ratings for a specific user',
+    description: 'Use query param `includeAverage=true` to include average rating in response'
+  })
   @ApiParam({ name: 'userId', description: 'User ID to get ratings for' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'includeAverage', required: false, type: Boolean, description: 'Include average rating in response' })
   @ApiResponse({ status: 200, description: 'Ratings fetched successfully' })
   async getUserRatings(
     @Param('userId') userId: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('includeAverage') includeAverage: boolean = false,
     @Res() res: Response,
   ) {
     try {
@@ -80,6 +93,20 @@ export class RatingController {
         Number(page),
         Number(limit),
       );
+
+      // Include average rating if requested
+      if (includeAverage) {
+        const averageRating = await this.ratingService.getUserAverageRating(userId);
+        return res.status(this.http.STATUS_OK).json(
+          new SuccessResponse(
+            {
+              ...data,
+              averageRating,
+            },
+            DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'ratings'),
+          ),
+        );
+      }
 
       return res.status(this.http.STATUS_OK).json(
         new SuccessResponse(
@@ -99,15 +126,20 @@ export class RatingController {
   }
 
   @Get('job/:jobId')
-  @ApiOperation({ summary: 'Get ratings for a specific job' })
+  @ApiOperation({ 
+    summary: 'Get ratings for a specific job',
+    description: 'Use query param `includeAverage=true` to include average rating in response'
+  })
   @ApiParam({ name: 'jobId', description: 'Job ID to get ratings for' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'includeAverage', required: false, type: Boolean, description: 'Include average rating in response' })
   @ApiResponse({ status: 200, description: 'Ratings fetched successfully' })
   async getJobRatings(
     @Param('jobId') jobId: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('includeAverage') includeAverage: boolean = false,
     @Res() res: Response,
   ) {
     try {
@@ -116,6 +148,20 @@ export class RatingController {
         Number(page),
         Number(limit),
       );
+
+      // Include average rating if requested
+      if (includeAverage) {
+        const averageRating = await this.ratingService.getJobAverageRating(jobId);
+        return res.status(this.http.STATUS_OK).json(
+          new SuccessResponse(
+            {
+              ...data,
+              averageRating,
+            },
+            DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'ratings'),
+          ),
+        );
+      }
 
       return res.status(this.http.STATUS_OK).json(
         new SuccessResponse(
@@ -133,6 +179,10 @@ export class RatingController {
       );
     }
   }
+
+  // ============================================
+  // AVERAGE RATINGS (Standalone endpoints for convenience)
+  // ============================================
 
   @Get('user/:userId/average')
   @ApiOperation({ summary: 'Get average rating for a user' })
@@ -190,4 +240,3 @@ export class RatingController {
     }
   }
 }
-

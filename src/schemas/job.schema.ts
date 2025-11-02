@@ -74,6 +74,12 @@ export class JobPosting {
 
   @Prop({ enum: JobStatus, default: JobStatus.active })
   status: string;
+
+  @Prop({ default: false })
+  isFeatured: boolean; // Featured listing for higher visibility
+
+  @Prop({ type: Date, required: false })
+  featuredUntil?: Date; // Featured listing expiration date
 }
 
 export const JobPostingSchema = SchemaFactory.createForClass(JobPosting);

@@ -2,8 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Shift, Invoice, InvoiceDocument,ShiftDocument, User, UserDocument } from 'src/schemas';
+import { Shift, Invoice, InvoiceDocument, ShiftDocument, User, UserDocument } from 'src/schemas';
+import { SavedSearchService } from '../saved-search/saved-search.service';
+import { JobAlertsService } from '../job-alerts/job-alerts.service';
 import { InvoiceStatus } from 'src/schemas/invoice.schema';
+import { FeaturedListingService } from '../featured-listing/featured-listing.service';
 
 @Injectable()
 export class TasksService {
@@ -13,6 +16,9 @@ export class TasksService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Invoice.name) private invoiceModel: Model<InvoiceDocument>,
     @InjectModel(Shift.name) private shiftModel: Model<ShiftDocument>,
+    private savedSearchService: SavedSearchService,
+    private jobAlertsService: JobAlertsService,
+    private featuredListingService: FeaturedListingService,
   ) {}
 
   // Cleanup expired OTPs - Run every hour
@@ -74,6 +80,28 @@ export class TasksService {
       this.logger.log(`Deleted ${result.deletedCount} old draft invoices`);
     } catch (error) {
       this.logger.error(`Error cleaning up old draft invoices: ${error.message}`);
+    }
+  }
+
+  // Check saved search matches - Every 6 hours
+  @Cron('0 */6 * * *')
+  async checkSavedSearchMatches() {
+    try {
+      await this.savedSearchService.checkSavedSearchMatches();
+      this.logger.log('Saved search matches checked');
+    } catch (error) {
+      this.logger.error('Error checking saved search matches:', error);
+    }
+  }
+
+  // Send job alerts - Every 4 hours
+  @Cron('0 */4 * * *')
+  async sendJobAlerts() {
+    try {
+      await this.jobAlertsService.sendJobAlertsForNewJobs();
+      this.logger.log('Job alerts sent');
+    } catch (error) {
+      this.logger.error('Error sending job alerts:', error);
     }
   }
 

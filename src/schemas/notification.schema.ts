@@ -17,6 +17,8 @@ export enum NotificationType {
   INVOICE_RECEIVED = 'invoice_received',
   RATING_RECEIVED = 'rating_received',
   SYSTEM_ANNOUNCEMENT = 'system_announcement',
+  JOB_ALERT = 'job_alert',
+  VERIFICATION_SUBMITTED = 'verification_submitted',
 }
 
 @Schema({ timestamps: true })

@@ -42,7 +42,10 @@ export class PaymentController {
     private readonly http: HttpStatusCodesService,
   ) {}
 
-  // Wallet APIs
+  // ============================================
+  // WALLET OPERATIONS
+  // ============================================
+
   @Get('wallet')
   @ApiOperation({ summary: 'Get wallet balance for current user' })
   @ApiResponse({ status: 200, description: 'Wallet balance fetched successfully' })
@@ -71,7 +74,10 @@ export class PaymentController {
     }
   }
 
-  // Provider: Pay for job posting
+  // ============================================
+  // PAYMENT OPERATIONS
+  // ============================================
+
   @Post('job-posting')
   @ApiOperation({ summary: 'Pay for a job posting (Provider only)' })
   @ApiBody({ type: PayForJobPostingDto })
@@ -118,7 +124,6 @@ export class PaymentController {
     }
   }
 
-  // Provider: Pay seeker for completed shift
   @Post('pay-seeker')
   @ApiOperation({ summary: 'Pay a job seeker for completed shift (Provider only)' })
   @ApiBody({ type: PaySeekerDto })
@@ -166,7 +171,6 @@ export class PaymentController {
     }
   }
 
-  // Seeker: Withdraw earnings
   @Post('withdraw')
   @ApiOperation({ summary: 'Withdraw earnings to bank account (Seeker only)' })
   @ApiBody({ type: WithdrawEarningsDto })
@@ -213,97 +217,87 @@ export class PaymentController {
     }
   }
 
-  // Transaction History
-  @Get('transactions')
-  @ApiOperation({ summary: 'Get transaction history for current user' })
+  // ============================================
+  // TRANSACTION & PAYMENT HISTORY
+  // ============================================
+
+  @Get('history')
+  @ApiOperation({ 
+    summary: 'Get transaction/payment history (unified endpoint)',
+    description: 'Use query param `view=transactions|payments` to switch between transaction history and payment history. Default is transactions.',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'type', required: false, enum: PaymentTypeEnum })
   @ApiQuery({ name: 'status', required: false, enum: TransactionStatus })
-  @ApiResponse({ status: 200, description: 'Transactions fetched successfully' })
-  async getTransactionHistory(
+  @ApiQuery({ 
+    name: 'view', 
+    required: false, 
+    enum: ['transactions', 'payments'],
+    description: 'View type: transactions (from Transaction collection) or payments (from Payment collection). Default: transactions'
+  })
+  @ApiResponse({ status: 200, description: 'History fetched successfully' })
+  async getHistory(
     @Req() request: Request,
     @Res() res: Response,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
     @Query('type') type?: PaymentTypeEnum,
     @Query('status') status?: TransactionStatus,
+    @Query('view') view?: 'transactions' | 'payments',
   ) {
     try {
       const userId = request.user.id;
-      const data = await this.paymentService.getTransactionHistory(
-        userId,
-        Number(page),
-        Number(limit),
-        type,
-        status,
-      );
+      let data;
+
+      if (view === 'payments') {
+        // Use payment history (from Payment collection)
+        data = await this.paymentService.getPaymentHistory(
+          userId,
+          Number(page),
+          Number(limit),
+          type,
+          status,
+        );
+      } else {
+        // Default: transaction history (from Transaction collection)
+        data = await this.paymentService.getTransactionHistory(
+          userId,
+          Number(page),
+          Number(limit),
+          type,
+          status,
+        );
+      }
 
       return res.status(this.http.STATUS_OK).json(
         new SuccessResponse(
           data,
-          DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'transactions'),
+          DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'history'),
         ),
       );
     } catch (error) {
       return res.status(this.http.STATUS_INTERNAL_SERVER_ERROR).json(
         new ErrorResponse(
           this.http.STATUS_INTERNAL_SERVER_ERROR,
-          'Error fetching transactions',
+          'Error fetching history',
           error.message,
         ),
       );
     }
   }
 
-  // Payment History
-  @Get('history')
-  @ApiOperation({ summary: 'Get payment history for current user' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'paymentType', required: false, enum: PaymentTypeEnum })
-  @ApiQuery({ name: 'status', required: false, enum: TransactionStatus })
-  @ApiResponse({ status: 200, description: 'Payments fetched successfully' })
-  async getPaymentHistory(
-    @Req() request: Request,
-    @Res() res: Response,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20,
-    @Query('paymentType') paymentType?: PaymentTypeEnum,
-    @Query('status') status?: TransactionStatus,
-  ) {
-    try {
-      const userId = request.user.id;
-      const data = await this.paymentService.getPaymentHistory(
-        userId,
-        Number(page),
-        Number(limit),
-        paymentType,
-        status,
-      );
+  // ============================================
+  // PAYMENT SUMMARIES
+  // ============================================
 
-      return res.status(this.http.STATUS_OK).json(
-        new SuccessResponse(
-          data,
-          DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'payments'),
-        ),
-      );
-    } catch (error) {
-      return res.status(this.http.STATUS_INTERNAL_SERVER_ERROR).json(
-        new ErrorResponse(
-          this.http.STATUS_INTERNAL_SERVER_ERROR,
-          'Error fetching payments',
-          error.message,
-        ),
-      );
-    }
-  }
-
-  // Provider Payment Summary
-  @Get('provider/summary')
-  @ApiOperation({ summary: 'Get payment summary for job provider (expenditure tracking)' })
+  @Get('summary')
+  @ApiOperation({ 
+    summary: 'Get payment summary (role-based)',
+    description: 'Returns provider payment summary or seeker earnings summary based on user role',
+  })
   @ApiResponse({ status: 200, description: 'Payment summary fetched successfully' })
-  async getProviderPaymentSummary(
+  async getPaymentSummary(
     @Req() request: Request,
     @Res() res: Response,
   ) {
@@ -311,17 +305,21 @@ export class PaymentController {
       const userId = request.user.id;
       const role = request.user.role;
 
-      if (role !== UserRole.job_provider) {
+      let data;
+
+      if (role === UserRole.job_provider) {
+        data = await this.paymentService.getProviderPaymentSummary(userId);
+      } else if (role === UserRole.job_seeker) {
+        data = await this.paymentService.getSeekerPaymentSummary(userId);
+      } else {
         return res.status(this.http.STATUS_UNAUTHORIZED).json(
           new ErrorResponse(
             this.http.STATUS_UNAUTHORIZED,
-            'Access restricted to job providers',
-            'Only job providers can access this endpoint',
+            'Access restricted',
+            'Only providers and seekers can access payment summaries',
           ),
         );
       }
-
-      const data = await this.paymentService.getProviderPaymentSummary(userId);
 
       return res.status(this.http.STATUS_OK).json(
         new SuccessResponse(
@@ -339,46 +337,4 @@ export class PaymentController {
       );
     }
   }
-
-  // Seeker Payment Summary
-  @Get('seeker/summary')
-  @ApiOperation({ summary: 'Get earnings summary for job seeker' })
-  @ApiResponse({ status: 200, description: 'Earnings summary fetched successfully' })
-  async getSeekerPaymentSummary(
-    @Req() request: Request,
-    @Res() res: Response,
-  ) {
-    try {
-      const userId = request.user.id;
-      const role = request.user.role;
-
-      if (role !== UserRole.job_seeker) {
-        return res.status(this.http.STATUS_UNAUTHORIZED).json(
-          new ErrorResponse(
-            this.http.STATUS_UNAUTHORIZED,
-            'Access restricted to job seekers',
-            'Only job seekers can access this endpoint',
-          ),
-        );
-      }
-
-      const data = await this.paymentService.getSeekerPaymentSummary(userId);
-
-      return res.status(this.http.STATUS_OK).json(
-        new SuccessResponse(
-          data,
-          DATA_FETCHED_SUCCESSFULLY.replace('{{entity}}', 'earnings summary'),
-        ),
-      );
-    } catch (error) {
-      return res.status(this.http.STATUS_INTERNAL_SERVER_ERROR).json(
-        new ErrorResponse(
-          this.http.STATUS_INTERNAL_SERVER_ERROR,
-          'Error fetching earnings summary',
-          error.message,
-        ),
-      );
-    }
-  }
 }
-

@@ -327,4 +327,74 @@ export class MailService {
     };
     await this.sendMail(template);
   }
+
+  async sendSavedSearchAlert(data: {
+    userEmail: string;
+    userName: string;
+    searchName: string;
+    matchCount: number;
+    jobs: Array<{ jobTitle: string; jobId: string; workLocation: string; amount: number }>;
+  }) {
+    const template = {
+      to: data.userEmail,
+      from: this.FROM_EMAIL,
+      subject: `${data.matchCount} New Job(s) Match Your Saved Search`,
+      template: './saved-search-alert',
+      context: {
+        userName: data.userName,
+        searchName: data.searchName,
+        matchCount: data.matchCount,
+        jobs: data.jobs,
+      },
+    };
+    await this.sendMail(template);
+  }
+
+  async sendJobAlert(data: {
+    userEmail: string;
+    userName: string;
+    jobTitle: string;
+    jobId: string;
+    workLocation: string;
+    amount: number;
+    matchScore?: number;
+  }) {
+    const template = {
+      to: data.userEmail,
+      from: this.FROM_EMAIL,
+      subject: `New Job Alert: ${data.jobTitle}`,
+      template: './job-alert',
+      context: {
+        userName: data.userName,
+        jobTitle: data.jobTitle,
+        jobId: data.jobId,
+        workLocation: data.workLocation,
+        amount: data.amount,
+        matchScore: data.matchScore,
+      },
+    };
+    await this.sendMail(template);
+  }
+
+  async sendTaxDocumentReady(data: {
+    userEmail: string;
+    userName: string;
+    taxYear: number;
+    documentType?: string;
+    downloadUrl?: string;
+  }) {
+    const template = {
+      to: data.userEmail,
+      from: this.FROM_EMAIL,
+      subject: `Your WorkNow Tax Document for ${data.taxYear} is Ready`,
+      template: './tax-document-ready',
+      context: {
+        userName: data.userName,
+        taxYear: data.taxYear,
+        documentType: data.documentType || 'Year-End Tax Summary',
+        downloadUrl: data.downloadUrl || '#',
+      },
+    };
+    await this.sendMail(template);
+  }
 }

@@ -23,6 +23,10 @@ export class Message {
   @Prop({ default: false })
   read: boolean;
 
+  // Message attachments
+  @Prop({ type: [String], default: [] })
+  attachments?: string[]; // URLs to attached files in S3
+
   @Prop()
   createdAt?: Date;
 

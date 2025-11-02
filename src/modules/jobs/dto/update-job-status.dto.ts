@@ -1,8 +1,15 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsMongoId } from "class-validator";
+import { IsEnum, IsString, IsNotEmpty } from "class-validator";
+import { JobStatus } from "src/constants";
 
 export class UpdateJobStatusDto {
-  @ApiProperty({ example: '66a6d8701b3f5c001f89d9a1' })
-  @IsMongoId()
-  jobId: string;
+  @ApiProperty({ 
+    description: 'New status for the job', 
+    enum: JobStatus,
+    example: JobStatus.active 
+  })
+  @IsString()
+  @IsNotEmpty()
+  @IsEnum(JobStatus)
+  status: JobStatus;
 }
