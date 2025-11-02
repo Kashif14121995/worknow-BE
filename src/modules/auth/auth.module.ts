@@ -6,8 +6,6 @@ import { User, UserSchema, RefreshToken, RefreshTokenSchema } from 'src/schemas'
 import { HttpStatusCodesService } from 'src/modules/http_status_codes/http_status_codes.service';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { AuthGuard } from '../../common/guards/auth.guard';
 import { MailModule } from 'src/modules/mail/mail.module';
 
 @Module({
@@ -18,6 +16,7 @@ import { MailModule } from 'src/modules/mail/mail.module';
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
+      global: true, // Make JwtModule available globally for AuthGuard in AppModule
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
@@ -35,10 +34,7 @@ import { MailModule } from 'src/modules/mail/mail.module';
   providers: [
     AuthService,
     HttpStatusCodesService,
-    {
-      provide: APP_GUARD,
-      useClass: AuthGuard,
-    },
+    // AuthGuard is now registered globally in AppModule to ensure it runs before RolesGuard
   ],
   controllers: [AuthController],
 })

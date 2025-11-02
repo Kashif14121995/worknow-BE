@@ -1,14 +1,14 @@
 import { IsOptional, IsString, IsIn, IsEnum } from 'class-validator';
-import { JobStatus } from 'src/constants';
+import { JobApplicationAppliedStatus, JobStatus } from 'src/constants';
 
-export class SearchDto {
+export class ApplicationSearchDto {
   @IsOptional()
   @IsString()
   searchText?: string = '';
 
   @IsOptional()
-  @IsEnum(JobStatus, {
-    message: `status must be one of: ${Object.values(JobStatus).join(', ')}`,
+  @IsEnum(JobApplicationAppliedStatus, {
+    message: `status must be one of: ${Object.values(JobApplicationAppliedStatus).join(', ')}`,
   })
-  status?: JobStatus;
+  status?: JobApplicationAppliedStatus;
 }

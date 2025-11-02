@@ -41,6 +41,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { FeaturedListingModule } from './modules/featured-listing/featured-listing.module';
 import { TaxDocumentModule } from './modules/tax-document/tax-document.module';
+import { CMSModule } from './modules/cms/cms.module';
+import { AuthGuard } from './common/guards/auth.guard';
 
 @Module({
   imports: [
@@ -99,7 +101,8 @@ import { TaxDocumentModule } from './modules/tax-document/tax-document.module';
     OnboardingModule,
     SubscriptionModule,
     FeaturedListingModule,
-    TaxDocumentModule,  
+    TaxDocumentModule,
+    CMSModule,  
   ],
   controllers: [AppController],
   providers: [
@@ -112,7 +115,11 @@ import { TaxDocumentModule } from './modules/tax-document/tax-document.module';
     },
     {
       provide: APP_GUARD,
-      useClass: RolesGuard,
+      useClass: AuthGuard, // AuthGuard must run before RolesGuard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard, // RolesGuard runs after AuthGuard sets request.user
     },
   ],
 })

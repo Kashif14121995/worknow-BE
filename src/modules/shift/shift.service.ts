@@ -22,7 +22,7 @@ export class ShiftService {
 
   async create(dto: CreateShiftDto, userId: string) {
     try {
-      const { jobId, appId, assigneeId, startDate, endDate, startTime, endTime } = dto;
+      const { jobId, appId, assigneeId, startDate, endDate, startTime, endTime, location, notes, breakMinutes } = dto;
 
       const assigneeObjectId = new Types.ObjectId(assigneeId);
 
@@ -71,6 +71,9 @@ export class ShiftService {
         startTime,
         endTime,
         createdBy: new Types.ObjectId(userId),
+        ...(location && { location }),
+        ...(notes && { notes }),
+        ...(breakMinutes !== undefined && { breakMinutes }),
       });
 
       const savedShift = await shift.save();
@@ -219,11 +222,14 @@ export class ShiftService {
     const shift = await this.shiftModel.findById(shiftId);
     if (!shift) throw new NotFoundException('Shift not found');
 
-    // Remove given assignee IDs
+    // Remove given assignee IDs from assignees array
     shift.assignees = shift.assignees.filter(
       (id) => !dto.assigneeIds.includes(id.toString()),
     );
     await shift.save();
+
+    // Delete corresponding ShiftAssignment records to keep data in sync
+    await this.shiftAssignmentService.deleteAssignments(shiftId, dto.assigneeIds);
 
     return shift;
   }
@@ -479,6 +485,9 @@ export class ShiftService {
     }
 
     await shift.save();
+
+    // Delete corresponding ShiftAssignment record to keep data in sync
+    await this.shiftAssignmentService.deleteAssignment(shiftId, seekerId);
 
     return {
       message: 'Shift cancelled successfully',

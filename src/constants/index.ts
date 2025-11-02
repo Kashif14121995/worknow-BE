@@ -2,7 +2,8 @@ export const USER_NOT_FOUND = 'user data not found';
 export const DATA_FETCHED_SUCCESSFULLY = `Successfully fetched data from server`;
 export const CREATED_SUCCESS = `Successfully created {{entity}}`;
 export const CREATED_ERROR = `Error creating entity {{entity}}`;
-
+export const DELETE_SUCCESS = `Successfully deleted {{entity}}`;
+export const DELETE_ERROR = `Error deleting entity {{entity}}`;
 export const UPDATE_SUCCESS = `Successfully updated {{entity}}`;
 export const UPDATE_ERROR = `Error updated  {{entity}}`;
 
@@ -33,11 +34,11 @@ export enum PaymentType {
 }
 
 export enum JobApplicationAppliedStatus {
-  applied,
-  shortlisted,
-  rejected,
-  hired,
-  completed,
+  applied = 'applied',
+  shortlisted = 'shortlisted',
+  rejected = 'rejected',
+  hired = 'hired',
+  completed = 'completed',
 }
 
 // Re-export verification enums for easy access

@@ -76,43 +76,126 @@ export class DashboardService {
             startDate: { $lte: fifteenDaysFromNow },
         };
 
-        const query = this.shiftModel
-            .find(filter)
-            .sort({ startDate: 1 })
-            .populate({
-                path: 'jobId',
-                select: '_id title',
-            })
-            .populate({
-                path: 'assignees',
-                match: searchText
-                    ? {
-                        $or: [
-                            { first_name: { $regex: searchText, $options: 'i' } },
-                            { last_name: { $regex: searchText, $options: 'i' } },
-                        ],
-                    }
-                    : {},
-                select: 'first_name last_name',
-            })
-            .select('startDate endDate startTime endTime shiftId status');
+        let totalCount: number;
+        let results: any[];
 
-        const skip = (page - 1) * limit;
-        const [totalCount, results] = await Promise.all([
-            this.shiftModel.countDocuments(filter),
-            query.skip(skip).limit(limit).lean(),
-        ]);
+        if (searchText && searchText.trim()) {
+            // Use aggregation to properly count filtered results
+            const aggregationPipeline: any[] = [
+                { $match: filter },
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'assignees',
+                        foreignField: '_id',
+                        as: 'assigneesData',
+                    },
+                },
+                {
+                    $match: {
+                        'assigneesData': {
+                            $elemMatch: {
+                                $or: [
+                                    { first_name: { $regex: searchText, $options: 'i' } },
+                                    { last_name: { $regex: searchText, $options: 'i' } },
+                                ],
+                            },
+                        },
+                    },
+                },
+                {
+                    $lookup: {
+                        from: 'jobpostings',
+                        localField: 'jobId',
+                        foreignField: '_id',
+                        as: 'jobData',
+                    },
+                },
+                { $unwind: { path: '$jobData', preserveNullAndEmptyArrays: true } },
+                {
+                    $project: {
+                        _id: 1,
+                        startDate: 1,
+                        endDate: 1,
+                        startTime: 1,
+                        endTime: 1,
+                        shiftId: 1,
+                        status: 1,
+                        jobId: { 
+                            _id: '$jobData._id',
+                            title: '$jobData.title'
+                        },
+                        assignees: {
+                            $map: {
+                                input: {
+                                    $filter: {
+                                        input: '$assigneesData',
+                                        as: 'assignee',
+                                        cond: {
+                                            $or: [
+                                                { $regexMatch: { input: '$$assignee.first_name', regex: searchText, options: 'i' } },
+                                                { $regexMatch: { input: '$$assignee.last_name', regex: searchText, options: 'i' } },
+                                            ],
+                                        },
+                                    },
+                                },
+                                as: 'assignee',
+                                in: {
+                                    _id: '$$assignee._id',
+                                    first_name: '$$assignee.first_name',
+                                    last_name: '$$assignee.last_name',
+                                },
+                            },
+                        },
+                    },
+                },
+            ];
 
-        const filteredResults = searchText
-            ? results.filter((shift) => shift.assignees?.length > 0)
-            : results;
+            const [countResult, dataResult] = await Promise.all([
+                this.shiftModel.aggregate([
+                    ...aggregationPipeline,
+                    { $count: 'total' },
+                ]),
+                this.shiftModel.aggregate([
+                    ...aggregationPipeline,
+                    { $sort: { startDate: 1 } },
+                    { $skip: (page - 1) * limit },
+                    { $limit: limit },
+                ]),
+            ]);
+
+            totalCount = countResult[0]?.total || 0;
+            results = dataResult;
+        } else {
+            // No search text - use simpler query
+            const query = this.shiftModel
+                .find(filter)
+                .sort({ startDate: 1 })
+                .populate({
+                    path: 'jobId',
+                    select: '_id title',
+                })
+                .populate({
+                    path: 'assignees',
+                    select: 'first_name last_name',
+                })
+                .select('startDate endDate startTime endTime shiftId status');
+
+            const skip = (page - 1) * limit;
+            [totalCount, results] = await Promise.all([
+                this.shiftModel.countDocuments(filter),
+                query.skip(skip).limit(limit).lean(),
+            ]);
+        }
+
+        const totalPages = Math.ceil(totalCount / limit);
 
         return {
+            upcomingShifts: results,
             total: totalCount,
-            page,
             limit,
-            count: filteredResults.length,
-            upcomingShifts: filteredResults,
+            page,
+            totalPages,
         };
     }
 

@@ -169,6 +169,78 @@ export class AdminController {
     }
   }
 
+  @Patch('users/:userId/block')
+  @ApiOperation({ summary: 'Block user (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } } })
+  @ApiResponse({ status: 200, description: 'User blocked successfully' })
+  async blockUser(
+    @Param('userId') userId: string,
+    @Body('reason') reason: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      await this.adminService.verifyAdmin(req.user.id);
+      const user = await this.adminService.blockUser(userId, reason);
+
+      return res.status(this.http.STATUS_OK).json(
+        new SuccessResponse(
+          user,
+          'User blocked successfully',
+        ),
+      );
+    } catch (error) {
+      const status = error.message.includes('not found')
+        ? this.http.STATUS_NOT_FOUND
+        : error.message.includes('Cannot')
+        ? this.http.STATUS_BAD_REQUEST
+        : this.http.STATUS_INTERNAL_SERVER_ERROR;
+
+      return res.status(status).json(
+        new ErrorResponse(
+          status,
+          'Error blocking user',
+          error.message,
+        ),
+      );
+    }
+  }
+
+  @Patch('users/:userId/unblock')
+  @ApiOperation({ summary: 'Unblock user (Admin only)' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User unblocked successfully' })
+  async unblockUser(
+    @Param('userId') userId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      await this.adminService.verifyAdmin(req.user.id);
+      const user = await this.adminService.unblockUser(userId);
+
+      return res.status(this.http.STATUS_OK).json(
+        new SuccessResponse(
+          user,
+          'User unblocked successfully',
+        ),
+      );
+    } catch (error) {
+      const status = error.message.includes('not found')
+        ? this.http.STATUS_NOT_FOUND
+        : this.http.STATUS_INTERNAL_SERVER_ERROR;
+
+      return res.status(status).json(
+        new ErrorResponse(
+          status,
+          'Error unblocking user',
+          error.message,
+        ),
+      );
+    }
+  }
+
   @Delete('users/:userId')
   @ApiOperation({ summary: 'Delete user (Admin only)' })
   @ApiParam({ name: 'userId', description: 'User ID' })

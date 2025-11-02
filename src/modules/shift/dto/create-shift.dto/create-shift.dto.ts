@@ -3,8 +3,12 @@ import {
   IsDateString,
   IsMongoId,
   Matches,
+  IsOptional,
+  IsString,
+  IsNumber,
+  Min,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateShiftDto {
   @ApiProperty({
@@ -54,4 +58,30 @@ export class CreateShiftDto {
     message: 'Invalid endTime format (HH:mm)',
   })
   endTime: string;
+
+  @ApiPropertyOptional({
+    description: 'Location details/notes for the shift',
+    example: 'Main Warehouse, Building A',
+  })
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @ApiPropertyOptional({
+    description: 'Additional notes about the shift',
+    example: 'Bring safety equipment',
+  })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Break time in minutes',
+    example: 30,
+    default: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  breakMinutes?: number;
 }

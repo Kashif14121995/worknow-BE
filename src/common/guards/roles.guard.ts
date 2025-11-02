@@ -19,15 +19,29 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-
+    
     if (!user) {
-      throw new ForbiddenException('Authentication required');
+      // Check if token exists but wasn't decoded
+      const authHeader = request.headers?.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        console.error('RolesGuard: Token present but user not set. AuthGuard may have failed.');
+        throw new ForbiddenException('Authentication failed. Please log in again.');
+      }
+      throw new ForbiddenException('Authentication required. Please provide a valid token.');
     }
 
-    const hasRole = requiredRoles.some((role) => user.role === role);
+    // Normalize roles for comparison (case-insensitive)
+    const userRole = user.role?.toString().toLowerCase();
+    const hasRole = requiredRoles.some((role) => {
+      const normalizedRequiredRole = role?.toString().toLowerCase();
+      return userRole === normalizedRequiredRole;
+    });
 
     if (!hasRole) {
-      throw new ForbiddenException(`Access denied. Required role: ${requiredRoles.join(' or ')}`);
+      console.error(`RolesGuard: Access denied. User role: "${user.role}", Required roles: ${requiredRoles.join(', ')}`);
+      throw new ForbiddenException(
+        `Access denied. Required role: ${requiredRoles.join(' or ')}. Your role: ${user.role || 'none'}`
+      );
     }
 
     return true;

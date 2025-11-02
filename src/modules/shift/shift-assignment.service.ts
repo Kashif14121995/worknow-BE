@@ -245,6 +245,22 @@ export class ShiftAssignmentService {
     return assignment;
   }
 
+  // Delete assignment when worker is unassigned
+  async deleteAssignment(shiftId: string, workerId: string): Promise<void> {
+    await this.shiftAssignmentModel.deleteOne({
+      shiftId: new Types.ObjectId(shiftId),
+      workerId: new Types.ObjectId(workerId),
+    });
+  }
+
+  // Delete multiple assignments
+  async deleteAssignments(shiftId: string, workerIds: string[]): Promise<void> {
+    await this.shiftAssignmentModel.deleteMany({
+      shiftId: new Types.ObjectId(shiftId),
+      workerId: { $in: workerIds.map(id => new Types.ObjectId(id)) },
+    });
+  }
+
   // Auto-update missed shifts (called by cron job)
   async updateMissedShifts(): Promise<void> {
     const now = new Date();

@@ -75,6 +75,18 @@ export class User {
 
   @Prop({ type: String, required: false })
   stripeCustomerId?: string; // Stripe customer ID for subscriptions
+
+  @Prop({ default: false })
+  isBlocked?: boolean; // Admin can block users
+
+  @Prop({ type: String, required: false })
+  blockReason?: string; // Reason for blocking
+
+  @Prop({ default: false })
+  isDeleted?: boolean; // Soft delete flag
+
+  @Prop({ type: Date, required: false })
+  deletedAt?: Date; // When user was soft deleted
 }
 
 const UserSchema = SchemaFactory.createForClass(User);

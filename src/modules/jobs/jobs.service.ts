@@ -273,6 +273,7 @@ export class JobsService {
           },
           {
             $project: {
+              _id: 1,
               jobTitle: 1,
               status: 1,
               createdAt: 1,
@@ -559,7 +560,7 @@ export class JobsService {
     }
 
     // Update application status to shortlisted
-    application.status = JobApplicationAppliedStatus.shortlisted as any;
+    application.status = JobApplicationAppliedStatus.shortlisted;
     await application.save();
 
     const populatedApp = await application.populate([
@@ -607,7 +608,7 @@ export class JobsService {
     }
 
     // Update application status to rejected
-    application.status = JobApplicationAppliedStatus.rejected as any;
+    application.status = JobApplicationAppliedStatus.rejected;
     await application.save();
 
     const populatedApp = await application.populate([
@@ -634,6 +635,66 @@ export class JobsService {
     }
 
     return populatedApp;
+  }
+
+  async getApplicationDetail(applicationId: string, providerId: string): Promise<any> {
+    const application = await this.jobApplyingModel
+      .findById(applicationId)
+      .populate({
+        path: 'appliedBy',
+        select: 'first_name last_name email',
+      })
+      .populate({
+        path: 'appliedFor',
+        select: '_id jobTitle jobId description workLocation amount shiftStartsAt shiftEndsAt status postedBy',
+        populate: {
+          path: 'postedBy',
+          select: 'first_name last_name email',
+        },
+      })
+      .lean();
+
+    if (!application) {
+      throw new NotFoundException('Application not found');
+    }
+
+    const job = application.appliedFor as any;
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    // Verify the provider owns this job
+    // Handle both populated object and ObjectId
+    const jobOwnerId = job.postedBy?._id 
+      ? job.postedBy._id.toString() 
+      : (job.postedBy ? job.postedBy.toString() : null);
+    
+    if (!jobOwnerId || jobOwnerId !== providerId) {
+      throw new ForbiddenException('You do not have permission to view this application');
+    }
+
+    // Format response
+    const appliedBy = application.appliedBy as any;
+    return {
+      applicationId: application._id,
+      appId: application.appId,
+      status: application.status,
+      appliedAt: application.createdAt,
+      applicantId: appliedBy?._id,
+      applicantName: appliedBy
+        ? `${appliedBy.first_name || ''} ${appliedBy.last_name || ''}`.trim()
+        : 'N/A',
+      applicantEmail: appliedBy?.email || 'N/A',
+      jobId: job.jobId,
+      jobMongoId: job._id,
+      jobTitle: job.jobTitle,
+      jobDescription: job.description,
+      workLocation: job.workLocation,
+      amount: job.amount,
+      shiftStartsAt: job.shiftStartsAt,
+      shiftEndsAt: job.shiftEndsAt,
+      jobStatus: job.status,
+    };
   }
 
   async withdrawApplication(applicationId: string, seekerId: string): Promise<JobApplying> {
@@ -678,7 +739,7 @@ export class JobsService {
     }
 
     // Update application status to hired
-    application.status = JobApplicationAppliedStatus.hired as any;
+    application.status = JobApplicationAppliedStatus.hired;
     await application.save();
 
     const populatedApp = await application.populate([
@@ -709,29 +770,187 @@ export class JobsService {
     return populatedApp;
   }
 
-  async update(jobId: string, payload: UpdateJobDto): Promise<JobPosting> {
+  /**
+   * Update an application with business rules/clauses
+   * @param applicationId - The application ID to update
+   * @param providerId - The job provider ID (must own the job)
+   * @param payload - Update payload (currently only shiftId is allowed)
+   * @returns Updated application
+   */
+  async updateApplication(
+    applicationId: string,
+    providerId: string,
+    payload: { shiftId?: string },
+  ): Promise<JobApplying> {
+    const application = await this.jobApplyingModel
+      .findById(applicationId)
+      .populate('appliedFor');
+
+    if (!application) {
+      throw new NotFoundException('Application not found');
+    }
+
+    const job = application.appliedFor as any;
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    // 🚫 Clause 1: Verify the provider owns this job
+    const jobOwnerId = job.postedBy?._id
+      ? job.postedBy._id.toString()
+      : (job.postedBy ? job.postedBy.toString() : null);
+
+    if (!jobOwnerId || jobOwnerId !== providerId) {
+      throw new ForbiddenException(
+        'You do not have permission to edit this application',
+      );
+    }
+
+    // 🚫 Clause 2: Cannot edit if application is in final states
+    if (
+      application.status === JobApplicationAppliedStatus.hired ||
+      application.status === JobApplicationAppliedStatus.completed
+    ) {
+      throw new BadRequestException(
+        'Cannot edit application with status: hired or completed',
+      );
+    }
+
+    // 🚫 Clause 3: Cannot edit if application is rejected
+    if (application.status === JobApplicationAppliedStatus.rejected) {
+      throw new BadRequestException(
+        'Cannot edit a rejected application. Please use approve endpoint to change status.',
+      );
+    }
+
+    // 🚫 Clause 4: If shiftId is provided, validate it exists and belongs to the job
+    if (payload.shiftId) {
+      const shift = await this.shiftModel.findById(payload.shiftId);
+      if (!shift) {
+        throw new NotFoundException('Shift not found');
+      }
+
+      // Verify shift belongs to the same job
+      if (shift.jobId.toString() !== job._id.toString()) {
+        throw new BadRequestException(
+          'Shift does not belong to this job',
+        );
+      }
+
+      // Update shiftId
+      application.shiftId = new Types.ObjectId(payload.shiftId);
+    }
+
+    await application.save();
+
+    // Populate and return updated application
+    const populatedApp = await application.populate([
+      { path: 'appliedBy', select: 'first_name last_name email' },
+      { path: 'appliedFor', select: 'jobTitle jobId workLocation status' },
+      { path: 'shiftId', select: 'startDate endDate startTime endTime' },
+    ]);
+
+    return populatedApp;
+  }
+
+  /**
+   * Update a job with business rules/clauses
+   * @param jobId - The job ID to update
+   * @param providerId - The job provider ID (must own the job)
+   * @param payload - Update payload
+   * @returns Updated job
+   */
+  async update(
+    jobId: string,
+    providerId: string,
+    payload: UpdateJobDto,
+  ): Promise<JobPosting> {
     const job = await this.jobPostingModel.findById(jobId);
 
     if (!job) {
       throw new NotFoundException('Job not found');
     }
 
-    // 🚫 Rule 1: Prevent update if job is closed
-    if (job.status === 'closed') {
-      throw new BadRequestException('This job is closed and cannot be updated');
-    }
+    // 🚫 Clause 1: Verify the provider owns this job
+    const jobOwnerId = job.postedBy?._id
+      ? job.postedBy._id.toString()
+      : (job.postedBy ? job.postedBy.toString() : null);
 
-    // 🚫 Rule 2: Prevent update if applicants exist
-    const applicantsCount = await this.jobApplyingModel.countDocuments({
-      appliedFor: jobId,
-    });
-
-    if (applicantsCount > 0) {
-      throw new BadRequestException(
-        'Applicants already applied, job cannot be updated',
+    if (!jobOwnerId || jobOwnerId !== providerId) {
+      throw new ForbiddenException(
+        'You do not have permission to edit this job',
       );
     }
 
+    // 🚫 Clause 2: Prevent update if job is closed
+    if (job.status === JobStatus.closed) {
+      throw new BadRequestException(
+        'This job is closed and cannot be updated',
+      );
+    }
+
+    // 🚫 Clause 3: Prevent update if job is cancelled
+    if (job.status === JobStatus.cancelled) {
+      throw new BadRequestException(
+        'This job is cancelled and cannot be updated',
+      );
+    }
+
+    // 🚫 Clause 4: Prevent update if job is ongoing
+    if (job.status === JobStatus.ongoing) {
+      throw new BadRequestException(
+        'This job is ongoing and cannot be updated. Please close or cancel it first.',
+      );
+    }
+
+    // 🚫 Clause 5: Prevent update if applicants exist (applied, shortlisted, or hired)
+    const applicantsCount = await this.jobApplyingModel.countDocuments({
+      appliedFor: new Types.ObjectId(jobId),
+    });
+
+    if (applicantsCount > 0) {
+      // Check if there are hired applicants
+      const hiredApplicantsCount = await this.jobApplyingModel.countDocuments({
+        appliedFor: new Types.ObjectId(jobId),
+        status: JobApplicationAppliedStatus.hired,
+      });
+
+      if (hiredApplicantsCount > 0) {
+        throw new BadRequestException(
+          'Cannot update job with hired applicants. Please complete or cancel shifts first.',
+        );
+      }
+
+      // Check if there are shortlisted applicants
+      const shortlistedCount = await this.jobApplyingModel.countDocuments({
+        appliedFor: new Types.ObjectId(jobId),
+        status: JobApplicationAppliedStatus.shortlisted,
+      });
+
+      if (shortlistedCount > 0) {
+        throw new BadRequestException(
+          'Cannot update job with shortlisted applicants. Please reject or hire them first.',
+        );
+      }
+
+      throw new BadRequestException(
+        'Applicants have already applied for this job. Cannot update job details. You can only update status or reject all applications first.',
+      );
+    }
+
+    // 🚫 Clause 6: Prevent update if job has active shifts assigned
+    const activeShiftsCount = await this.shiftModel.countDocuments({
+      jobId: new Types.ObjectId(jobId),
+      status: { $in: ['scheduled', 'in_progress'] },
+    });
+
+    if (activeShiftsCount > 0) {
+      throw new BadRequestException(
+        'Cannot update job with active shifts (scheduled or in progress). Please complete or cancel shifts first.',
+      );
+    }
+
+    // ✅ Allow update for draft jobs or active jobs with no applicants/shifts
     return this.jobPostingModel.findByIdAndUpdate(jobId, payload, {
       new: true,
     });
@@ -937,6 +1156,114 @@ export class JobsService {
     } catch (error) {
       console.error('❌ Error in getUnassignedApplications:', error);
       throw new Error('Failed to fetch unassigned job applications');
+    }
+  }
+
+  /**
+   * Get a single seeker detail by seekerId and optional applicationId
+   * @param listerId - The ID of the lister (job provider)
+   * @param seekerId - The seeker ID
+   * @param applicationId - Optional application ID to filter by specific application
+   * @returns Seeker detail with job, application, and shift information
+   */
+  async getSeekerDetail(
+    listerId: string,
+    seekerId: string,
+    applicationId?: string,
+  ) {
+    try {
+      // Step 1: Find all jobs created by the lister
+      const jobs = await this.jobPostingModel.find({
+        postedBy: new Types.ObjectId(listerId)
+      });
+
+      if (jobs.length === 0) {
+        throw new NotFoundException('No jobs found for this provider');
+      }
+
+      const jobIds = jobs.map(job => job._id);
+
+      // Step 2: Find applications for these jobs
+      const applicationQuery: any = {
+        appliedFor: { $in: jobIds },
+        appliedBy: new Types.ObjectId(seekerId),
+      };
+
+      if (applicationId) {
+        applicationQuery._id = new Types.ObjectId(applicationId);
+      }
+
+      const applications = await this.jobApplyingModel
+        .find(applicationQuery)
+        .populate('appliedBy')
+        .lean();
+
+      if (applications.length === 0) {
+        throw new NotFoundException('Application not found or seeker not found');
+      }
+
+      // Step 3: Get the seeker data from the first application
+      const application = applications[0];
+      const seeker = application.appliedBy as any;
+
+      if (!seeker) {
+        throw new NotFoundException('Seeker not found');
+      }
+
+      // Step 4: Find matching job
+      const job = jobs.find(j => j._id.toString() === application.appliedFor.toString());
+
+      // Step 5: Find shifts for the specific job that this seeker is assigned to
+      const shifts = await this.shiftModel.find({
+        jobId: new Types.ObjectId(application.appliedFor),
+        assignees: new Types.ObjectId(seekerId),
+      }).lean();
+
+      // Find the shift for this specific application/job combination
+      const shift = shifts.length > 0 ? shifts[0] : null;
+
+      // Step 6: Format response
+      return {
+        seekerId: seeker._id.toString(),
+        seekerName: `${seeker.first_name} ${seeker.last_name}`,
+        seekerEmail: seeker.email,
+        seekerPhone: seeker.phone_number,
+        seekerRole: seeker.role,
+        // Job details
+        jobId: job?.jobId || job?._id?.toString() || job?._id,
+        jobMongoId: job?._id?.toString() || job?._id,
+        jobTitle: job?.jobTitle,
+        jobDescription: job?.description,
+        jobStatus: job?.status,
+        jobRequiredSkills: job?.requiredSkills,
+        jobAmount: job?.amount,
+        jobPaymentType: job?.paymentType,
+        jobWorkLocation: job?.workLocation,
+        jobIndustry: job?.industry,
+        jobType: job?.jobType,
+        jobExperienceLevel: job?.experienceLevel,
+        jobEducation: job?.education,
+        jobPositions: job?.positions,
+        // Application details
+        appliedAt: application.createdAt,
+        applicationStatus: application.status,
+        applicationId: application.appId || application._id.toString(),
+        applicationMongoId: application._id.toString(),
+        // Shift details (if assigned)
+        shiftId: shift?.shiftId || shift?._id?.toString() || shift?._id || null,
+        shiftMongoId: shift?._id?.toString() || shift?._id || null,
+        shiftStartDate: shift?.startDate ? new Date(shift.startDate).toISOString() : null,
+        shiftEndDate: shift?.endDate ? new Date(shift.endDate).toISOString() : null,
+        shiftStartTime: shift?.startTime || null,
+        shiftEndTime: shift?.endTime || null,
+        shiftStatus: shift?.status || null,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('🔍 Debug: Error in getSeekerDetail:', error);
+      throw new Error('Failed to fetch seeker detail');
     }
   }
 }
