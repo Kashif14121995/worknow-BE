@@ -27,6 +27,15 @@ async function bootstrap() {
   // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  // CORS Configuration - allow all origins
+  app.enableCors({
+    origin: true, // Allow all origins
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Authorization'],
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
