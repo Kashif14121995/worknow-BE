@@ -1,3 +1,9 @@
+// Ensure crypto is available globally for @nestjs/schedule
+import { webcrypto } from 'crypto';
+if (typeof globalThis.crypto === 'undefined') {
+  globalThis.crypto = webcrypto as any;
+}
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
