@@ -11,7 +11,8 @@ import {
   UpdateWorkExperienceDto, 
   UpdateAvailabilityDto, 
   UpdateWorkLocationDto, 
-  UpdateIdentityDto 
+  UpdateIdentityDto,
+  UpdateEducationDto
 } from './dto/update-seeker-profile.dto';
 
 @Controller('dashboard')
@@ -476,6 +477,43 @@ export class DashboardController {
                 new ErrorResponse(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     UPDATE_ERROR.replace('{{entity}}', 'work location'),
+                    error.message,
+                ),
+            );
+        }
+    }
+
+    @Patch('seeker/profile/education')
+    @ApiOperation({ summary: 'Update education for job seeker' })
+    @ApiBody({ type: UpdateEducationDto })
+    @ApiResponse({ status: 200, description: 'Education updated successfully' })
+    async updateEducation(
+        @Req() req: Request,
+        @Res() res: Response,
+        @Body() dto: UpdateEducationDto,
+    ) {
+        try {
+            const userId = req?.user?.id;
+            const role = req?.user?.role;
+
+            if (!req.user || role !== UserRole.job_seeker) {
+                throw new ForbiddenException('Access restricted to job seekers');
+            }
+
+            const data = await this.dashboardService.updateSeekerEducation(userId, dto.education);
+
+            return res.status(HttpStatus.OK).json(
+                new SuccessResponse(
+                    data,
+                    UPDATE_SUCCESS.replace('{{entity}}', 'education'),
+                ),
+            );
+        } catch (error) {
+            console.error(error);
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
+                new ErrorResponse(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    UPDATE_ERROR.replace('{{entity}}', 'education'),
                     error.message,
                 ),
             );

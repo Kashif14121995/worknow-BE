@@ -94,6 +94,10 @@ export class JobsService {
     if (!user.education) {
       throw new BadRequestException('Please add your education details to your profile to apply for jobs.');
     }
+    
+    if (!user.location) {
+      throw new BadRequestException('Please add your preferred work location to your profile to apply for jobs.');
+    }
 
     // 4️⃣ Job already fetched above for blocking check
 
@@ -123,20 +127,14 @@ export class JobsService {
       throw new BadRequestException('The application deadline for this job has passed.');
     }
 
-    // 9️⃣ Check experience requirement
-    if (job.experienceLevel && user.experience < parseInt(job.experienceLevel)) {
-      throw new BadRequestException(`You do not meet the experience requirement. This job requires ${job.experienceLevel} years of experience.`);
-    }
+    // 9️⃣ Check experience requirement - REMOVED (validation disabled)
+    // Note: Experience requirement check removed as per requirements
 
-    // 10️⃣ Check education requirement
-    if (job.education && user.education.toLowerCase() !== job.education.toLowerCase()) {
-      throw new BadRequestException(`You do not meet the education requirement. This job requires: ${job.education}`);
-    }
+    // 10️⃣ Check education requirement - REMOVED (validation disabled)
+    // Note: Education requirement check removed as per requirements
 
-    // 11️⃣ Check location restriction (if applicable)
-    if (job.workLocation && user.location && user.location.toLowerCase() !== job.workLocation.toLowerCase()) {
-      throw new BadRequestException(`This job requires location: ${job.workLocation}. Your current location is: ${user.location}`);
-    }
+    // 11️⃣ Check location restriction - REMOVED (validation disabled)
+    // Note: Location restriction check removed as per requirements
 
     // 12️⃣ Check overlapping shifts
     const overlappingShift = await this.jobApplyingModel

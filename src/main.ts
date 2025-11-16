@@ -58,7 +58,7 @@ async function bootstrap() {
   
   // Add development server only in development
   if (!isProduction) {
-    config.addServer('http://localhost:3000', 'Development Server');
+    config.addServer('http://localhost:8000', 'Development Server');
   }
   
   const swaggerConfig = config.build();

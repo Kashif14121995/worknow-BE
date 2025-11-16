@@ -510,12 +510,17 @@ export class DashboardService {
             .find({ appliedBy: seekerObjectId })
             .distinct('appliedFor');
 
+        // Build filter - similar to getRecommendedGigs, no date filter by default
         const filter: any = {
             status: JobStatus.active,
-            _id: { $nin: appliedJobIds },
-            shiftStartsAt: { $gte: new Date() }, // Only future jobs
         };
 
+        // Only exclude applied jobs if there are any
+        if (appliedJobIds && appliedJobIds.length > 0) {
+            filter._id = { $nin: appliedJobIds };
+        }
+
+        // Add search filter
         if (searchText && searchText.trim()) {
             filter.$or = [
                 { jobTitle: { $regex: searchText, $options: 'i' } },
@@ -523,6 +528,10 @@ export class DashboardService {
                 { workLocation: { $regex: searchText, $options: 'i' } },
             ];
         }
+
+        // Debug logging
+        console.log('getActiveJobsForSeeker - Filter:', JSON.stringify(filter, null, 2));
+        console.log('getActiveJobsForSeeker - Applied Job IDs:', appliedJobIds);
 
         const [jobs, total] = await Promise.all([
             this.jobModel
@@ -535,27 +544,23 @@ export class DashboardService {
             this.jobModel.countDocuments(filter),
         ]);
 
+        console.log('getActiveJobsForSeeker - Found jobs:', jobs.length, 'Total:', total);
+
         const formattedJobs = jobs.map((job: any) => ({
-            id: job._id,
-            jobId: job.jobId,
-            title: job.jobTitle,
-            jobType: job.jobType,
-            industry: job.industry,
-            location: job.workLocation,
-            amount: job.amount,
-            paymentType: job.paymentType,
-            shiftDuration: job.shiftDuration,
-            startDate: job.shiftStartsAt,
-            endDate: job.shiftEndsAt,
-            description: job.description,
-            positions: job.positions,
-            postedBy: job.postedBy ? {
-                name: `${job.postedBy.first_name} ${job.postedBy.last_name}`,
-            } : null,
+            _id: job._id.toString(),
+            jobTitle: job.jobTitle,
+            jobDescription: job.description || '',
+            jobAmount: job.amount || 0,
+            jobPaymentType: job.paymentType || '',
+            jobWorkLocation: job.workLocation || '',
+            jobIndustry: job.industry || '',
+            jobType: job.jobType || '',
+            jobRequiredSkills: job.requiredSkills || [],
+            createdAt: job.createdAt ? new Date(job.createdAt).toISOString() : new Date().toISOString(),
         }));
 
         return {
-            jobs: formattedJobs,
+            recommendedGigs: formattedJobs,
             total,
             page,
             limit,
@@ -565,14 +570,17 @@ export class DashboardService {
 
     async updateSeekerWorkExperience(seekerId: string, experience: number) {
         const seekerObjectId = new Types.ObjectId(seekerId);
+        // Ensure experience is a valid number (0 is valid for freshers)
+        const experienceValue = typeof experience === 'number' && experience >= 0 ? experience : 0;
         const user = await this.userModel.findByIdAndUpdate(
             seekerObjectId,
-            { experience },
+            { experience: experienceValue },
             { new: true }
         );
         if (!user) {
             throw new Error('User not found');
         }
+        console.log(`Updated user ${seekerId} experience to: ${user.experience}`);
         return { experience: user.experience };
     }
 
@@ -600,6 +608,20 @@ export class DashboardService {
             throw new Error('User not found');
         }
         return { location: user.location };
+    }
+
+    async updateSeekerEducation(seekerId: string, education: string) {
+        const seekerObjectId = new Types.ObjectId(seekerId);
+        const user = await this.userModel.findByIdAndUpdate(
+            seekerObjectId,
+            { education },
+            { new: true }
+        );
+        if (!user) {
+            throw new Error('User not found');
+        }
+        console.log(`Updated user ${seekerId} education to: ${user.education}`);
+        return { education: user.education };
     }
 
     async updateSeekerIdentity(seekerId: string, identityDocument: string) {
