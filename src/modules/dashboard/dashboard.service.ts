@@ -471,24 +471,24 @@ export class DashboardService {
 
         const earningsDetail = shifts.map((shift: any) => {
             const job = shift.jobId;
-            const employer = shift.createdBy;
             const isCompleted = shift.status === 'completed';
-            const isPending = !isCompleted;
 
             return {
-                id: shift._id,
-                shiftId: shift.shiftId,
-                job: {
-                    id: job?._id,
-                    jobId: job?.jobId,
-                    title: job?.jobTitle,
-                    location: job?.workLocation,
+                _id: shift._id?.toString() || shift._id,
+                shiftId: {
+                    _id: shift._id?.toString() || shift.shiftId || shift._id,
+                    startDate: shift.startDate ? new Date(shift.startDate).toISOString() : null,
+                    endDate: shift.endDate ? new Date(shift.endDate).toISOString() : null,
+                    startTime: shift.startTime || null,
+                    endTime: shift.endTime || null,
                 },
-                employer: employer ? `${employer.first_name} ${employer.last_name}` : null,
+                jobId: {
+                    _id: job?._id?.toString() || job?._id || '',
+                    jobTitle: job?.jobTitle || 'N/A',
+                },
                 amount: job?.amount || 0,
-                date: shift.endDate ? new Date(shift.endDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : null,
                 status: isCompleted ? 'processed' : 'pending',
-                completedAt: isCompleted ? shift.endDate : null,
+                createdAt: shift.endDate ? new Date(shift.endDate).toISOString() : new Date().toISOString(),
             };
         });
 

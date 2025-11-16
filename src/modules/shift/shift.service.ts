@@ -257,7 +257,7 @@ export class ShiftService {
         })
         .populate({
           path: 'jobId',
-          select: 'jobTitle amount workLocation',
+          select: 'jobTitle amount workLocation paymentType',
         })
         .populate({
           path: 'createdBy',
@@ -276,7 +276,7 @@ export class ShiftService {
         })
         .populate({
           path: 'appliedFor',
-          select: 'jobTitle shiftStartsAt shiftEndsAt amount workLocation',
+          select: 'jobTitle shiftStartsAt shiftEndsAt amount workLocation paymentType',
         })
         .populate({
           path: 'appliedFor',
@@ -308,7 +308,7 @@ export class ShiftService {
         })
         .populate({
           path: 'appliedFor',
-          select: 'jobTitle shiftStartsAt shiftEndsAt amount workLocation',
+          select: 'jobTitle shiftStartsAt shiftEndsAt amount workLocation paymentType',
         })
         .populate({
           path: 'appliedFor',
@@ -341,7 +341,7 @@ export class ShiftService {
         })
         .populate({
           path: 'jobId',
-          select: 'jobTitle amount workLocation',
+          select: 'jobTitle amount workLocation paymentType',
         })
         .populate({
           path: 'createdBy',
@@ -353,28 +353,51 @@ export class ShiftService {
         .lean();
     }
 
-    // Format shifts similar to screenshot
+    // Format shifts to match Lister shift structure
     const formattedShifts = shifts.map((shift: any) => {
       const job = shift.jobId || shift;
-      const employer = shift.createdBy || (shift.appliedFor?.postedBy || {});
       
+      // For applied/shortlisted, we need to construct the jobId object properly
+      let jobIdObj: any = {};
+      if (job && typeof job === 'object' && job._id) {
+        // Job is already populated
+        jobIdObj = {
+          _id: job._id,
+          jobTitle: job.jobTitle || 'N/A',
+          jobWorkLocation: job.workLocation || job.jobWorkLocation || 'N/A',
+          jobAmount: job.amount || job.jobAmount || 0,
+          jobPaymentType: job.paymentType || job.jobPaymentType || 'hour',
+        };
+      } else if (job && typeof job === 'object') {
+        // Job might be a plain object
+        jobIdObj = {
+          _id: job._id || job.id || '',
+          jobTitle: job.jobTitle || 'N/A',
+          jobWorkLocation: job.workLocation || job.jobWorkLocation || 'N/A',
+          jobAmount: job.amount || job.jobAmount || 0,
+          jobPaymentType: job.paymentType || job.jobPaymentType || 'hour',
+        };
+      }
+
+      // Get dates and times - for applied/shortlisted, use job dates
+      // Note: Jobs don't have separate time fields, only dates
+      const startDate = shift.startDate || job?.shiftStartsAt || null;
+      const endDate = shift.endDate || job?.shiftEndsAt || startDate;
+      // For shifts, we have startTime/endTime. For jobs (applied/shortlisted), times are not available
+      const startTime = shift.startTime || null;
+      const endTime = shift.endTime || null;
+
       return {
-        id: shift._id?.toString() || shift._id,
-        jobTitle: job?.jobTitle || job?.jobTitle || 'N/A',
-        employer: employer?.first_name && employer?.last_name 
-          ? `${employer.first_name} ${employer.last_name}` 
-          : 'N/A',
-        date: shift.startDate 
-          ? new Date(shift.startDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-          : job?.shiftStartsAt 
-            ? new Date(job.shiftStartsAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-            : null,
-        time: shift.startTime && shift.endTime
-          ? `${shift.startTime} - ${shift.endTime}`
-          : null,
-        pay: job?.amount || null,
-        location: job?.workLocation || job?.workLocation || null,
-        status: status === 'upcoming' || status === 'completed' ? 'Confirmed' : status,
+        _id: shift._id?.toString() || shift._id,
+        shiftId: shift.shiftId || shift._id?.toString() || shift._id,
+        jobId: jobIdObj,
+        startDate: startDate ? new Date(startDate).toISOString() : null,
+        endDate: endDate ? new Date(endDate).toISOString() : null,
+        startTime: startTime || null,
+        endTime: endTime || null,
+        status: shift.status || (status === 'upcoming' || status === 'completed' ? 'scheduled' : status),
+        appliedAt: shift.appliedAt || (status === 'applied' || status === 'shortlisted' ? new Date().toISOString() : undefined),
+        assignedAt: shift.assignedAt || (status === 'upcoming' || status === 'completed' ? new Date().toISOString() : undefined),
       };
     });
 
