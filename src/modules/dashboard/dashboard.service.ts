@@ -570,14 +570,17 @@ export class DashboardService {
 
     async updateSeekerWorkExperience(seekerId: string, experience: number) {
         const seekerObjectId = new Types.ObjectId(seekerId);
+        // Ensure experience is a valid number (0 is valid for freshers)
+        const experienceValue = typeof experience === 'number' && experience >= 0 ? experience : 0;
         const user = await this.userModel.findByIdAndUpdate(
             seekerObjectId,
-            { experience },
+            { experience: experienceValue },
             { new: true }
         );
         if (!user) {
             throw new Error('User not found');
         }
+        console.log(`Updated user ${seekerId} experience to: ${user.experience}`);
         return { experience: user.experience };
     }
 
