@@ -355,28 +355,39 @@ export class ShiftService {
 
     // Format shifts to match Lister shift structure
     const formattedShifts = shifts.map((shift: any) => {
-      const job = shift.jobId || shift;
+      const job = shift.jobId;
       
-      // For applied/shortlisted, we need to construct the jobId object properly
-      let jobIdObj: any = {};
-      if (job && typeof job === 'object' && job._id) {
-        // Job is already populated
-        jobIdObj = {
-          _id: job._id,
-          jobTitle: job.jobTitle || 'N/A',
-          jobWorkLocation: job.workLocation || job.jobWorkLocation || 'N/A',
-          jobAmount: job.amount || job.jobAmount || 0,
-          jobPaymentType: job.paymentType || job.jobPaymentType || 'hour',
-        };
-      } else if (job && typeof job === 'object') {
-        // Job might be a plain object
-        jobIdObj = {
-          _id: job._id || job.id || '',
-          jobTitle: job.jobTitle || 'N/A',
-          jobWorkLocation: job.workLocation || job.jobWorkLocation || 'N/A',
-          jobAmount: job.amount || job.jobAmount || 0,
-          jobPaymentType: job.paymentType || job.jobPaymentType || 'hour',
-        };
+      // Always initialize with defaults to prevent empty object
+      let jobIdObj: any = {
+        _id: '',
+        jobTitle: 'N/A',
+        jobWorkLocation: 'N/A',
+        jobAmount: 0,
+        jobPaymentType: 'hour',
+      };
+      
+      // Check if job is populated (not null, not ObjectId, has properties)
+      if (job && typeof job === 'object' && !(job instanceof Types.ObjectId) && job._id) {
+        // Job is populated - extract all fields
+        jobIdObj._id = job._id.toString ? job._id.toString() : String(job._id);
+        jobIdObj.jobTitle = job.jobTitle || 'N/A';
+        jobIdObj.jobWorkLocation = job.workLocation || job.jobWorkLocation || 'N/A';
+        jobIdObj.jobAmount = job.amount !== undefined && job.amount !== null ? Number(job.amount) : (job.jobAmount !== undefined && job.jobAmount !== null ? Number(job.jobAmount) : 0);
+        jobIdObj.jobPaymentType = job.paymentType || job.jobPaymentType || 'hour';
+      } else if (job && typeof job === 'object' && !(job instanceof Types.ObjectId)) {
+        // Job might be a plain object without _id
+        if (job._id) jobIdObj._id = String(job._id);
+        if (job.id) jobIdObj._id = String(job.id);
+        if (job.jobTitle) jobIdObj.jobTitle = job.jobTitle;
+        if (job.workLocation) jobIdObj.jobWorkLocation = job.workLocation;
+        if (job.jobWorkLocation) jobIdObj.jobWorkLocation = job.jobWorkLocation;
+        if (job.amount !== undefined && job.amount !== null) jobIdObj.jobAmount = Number(job.amount);
+        if (job.jobAmount !== undefined && job.jobAmount !== null) jobIdObj.jobAmount = Number(job.jobAmount);
+        if (job.paymentType) jobIdObj.jobPaymentType = job.paymentType;
+        if (job.jobPaymentType) jobIdObj.jobPaymentType = job.jobPaymentType;
+      } else if (job && (job instanceof Types.ObjectId || typeof job === 'string')) {
+        // jobId is an ObjectId or string but wasn't populated - at least set the ID
+        jobIdObj._id = job.toString ? job.toString() : String(job);
       }
 
       // Get dates and times - for applied/shortlisted, use job dates
