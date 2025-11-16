@@ -610,6 +610,20 @@ export class DashboardService {
         return { location: user.location };
     }
 
+    async updateSeekerEducation(seekerId: string, education: string) {
+        const seekerObjectId = new Types.ObjectId(seekerId);
+        const user = await this.userModel.findByIdAndUpdate(
+            seekerObjectId,
+            { education },
+            { new: true }
+        );
+        if (!user) {
+            throw new Error('User not found');
+        }
+        console.log(`Updated user ${seekerId} education to: ${user.education}`);
+        return { education: user.education };
+    }
+
     async updateSeekerIdentity(seekerId: string, identityDocument: string) {
         // Note: Identity document field might need to be added to User schema
         // For now, we'll store it in a placeholder or you can extend the schema

@@ -35,3 +35,12 @@ export class UpdateIdentityDto {
   identityDocument?: string;
 }
 
+export class UpdateEducationDto {
+  @ApiProperty({ 
+    example: "Bachelor's Degree",
+    description: 'Education level or qualification' 
+  })
+  @IsString()
+  education: string;
+}
+
