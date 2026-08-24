@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { User, UserSchema } from 'src/schemas';
+import { User, UserSchema, RefreshToken, RefreshTokenSchema } from 'src/schemas';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { HttpStatusCodesService } from '../http_status_codes/http_status_codes.service';
@@ -9,6 +9,7 @@ import { HttpStatusCodesService } from '../http_status_codes/http_status_codes.s
   imports: [
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
+      { name: RefreshToken.name, schema: RefreshTokenSchema },
     ]),
   ],
   controllers: [UserController],

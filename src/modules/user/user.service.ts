@@ -1,8 +1,10 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { User, UserDocument } from 'src/schemas';
-import { Model } from 'mongoose';
+import { User, UserDocument, RefreshToken, RefreshTokenDocument } from 'src/schemas';
+import { Model, Types } from 'mongoose';
 import { BcryptService } from '../bcrypt/bcrypt.service';
+import { PublicDeleteAccountDto } from './dto/delete-account.dto';
+import { UserRole } from 'src/constants';
 
 @Injectable()
 export class UserService {
@@ -10,6 +12,7 @@ export class UserService {
 
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshTokenDocument>,
   ) {}
 
   async updateProfile(userId: string, updates: {
@@ -57,6 +60,64 @@ export class UserService {
     }
 
     return user;
+  }
+
+  async deleteAccount(userId: string) {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (user.role === UserRole.admin) {
+      throw new ForbiddenException('Cannot delete admin user');
+    }
+
+    if (user.isDeleted) {
+      throw new BadRequestException('Account is already deleted');
+    }
+
+    // Soft delete: set flags and prefix email to allow future registration
+    await this.userModel.findByIdAndUpdate(userId, {
+      isDeleted: true,
+      deletedAt: new Date(),
+      email: `deleted_${user._id}_${user.email}`,
+    });
+
+    // Revoke/Delete refresh tokens
+    await this.refreshTokenModel.deleteMany({ userId: new Types.ObjectId(userId) });
+
+    return { message: 'Account removed successfully' };
+  }
+
+  async deleteAccountPublic(dto: PublicDeleteAccountDto) {
+    const filter: any = {
+      email: dto.email.toLowerCase().trim(),
+      isDeleted: { $ne: true },
+    };
+
+    if (dto.role) {
+      filter.role = dto.role;
+    }
+
+    const user = await this.userModel.findOne(filter);
+    if (!user) {
+      throw new BadRequestException('Invalid email or user not found');
+    }
+
+    if (user.role === UserRole.admin) {
+      throw new ForbiddenException('Cannot delete admin user');
+    }
+
+    const isPasswordValid = await this.bcryptService.comparePassword(
+      dto.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return await this.deleteAccount(user._id.toString());
   }
 }
 
